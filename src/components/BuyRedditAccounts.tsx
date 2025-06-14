@@ -1,20 +1,37 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Tables } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShieldQuestion } from 'lucide-react';
 
-type RedditAccount = Tables<'reddit_accounts'>;
+// Manually defining the type to fix build errors from stale Supabase types.
+type RedditAccount = {
+    id: string; // uuid
+    created_at: string;
+    username: string;
+    password: string;
+    email: string;
+    email_password: string;
+    post_karma: number;
+    comment_karma: number;
+    total_karma: number;
+    account_age_years: number | null;
+    profile_url: string | null;
+    status: "available" | "sold";
+    buy_price: number;
+    sell_price: number;
+    created_by_admin_id: string | null; // uuid
+    sold_to_user_id: string | null; // uuid
+    sold_at: string | null;
+};
 
-const fetchAvailableAccounts = async () => {
+const fetchAvailableAccounts = async (): Promise<RedditAccount[]> => {
   const { data, error } = await supabase.from('reddit_accounts').select('*').eq('status', 'available').order('sell_price', { ascending: true });
   if (error) throw error;
-  return data;
+  return data as RedditAccount[];
 };
 
 // This function will be created in the database in the next step.

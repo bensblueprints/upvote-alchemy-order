@@ -1,21 +1,38 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Tables } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Copy } from 'lucide-react';
 
-type RedditAccount = Tables<'reddit_accounts'>;
+// Manually defining the type to fix build errors from stale Supabase types.
+type RedditAccount = {
+    id: string; // uuid
+    created_at: string;
+    username: string;
+    password: string;
+    email: string;
+    email_password: string;
+    post_karma: number;
+    comment_karma: number;
+    total_karma: number;
+    account_age_years: number | null;
+    profile_url: string | null;
+    status: "available" | "sold";
+    buy_price: number;
+    sell_price: number;
+    created_by_admin_id: string | null; // uuid
+    sold_to_user_id: string | null; // uuid
+    sold_at: string | null;
+};
 
-const fetchMyPurchasedAccounts = async (userId: string | undefined) => {
+const fetchMyPurchasedAccounts = async (userId: string | undefined): Promise<RedditAccount[]> => {
   if (!userId) return [];
   const { data, error } = await supabase.from('reddit_accounts').select('*').eq('sold_to_user_id', userId);
   if (error) throw error;
-  return data;
+  return data as RedditAccount[];
 };
 
 export const MyPurchasedAccounts = () => {

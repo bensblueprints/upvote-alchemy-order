@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type UpvoteOrder = Tables<'upvote_orders'>;
-type UpvoteOrderWithProfile = UpvoteOrder & { profiles: { email: string } | null };
+type Profile = Tables<'profiles'>;
+type UpvoteOrderWithProfile = UpvoteOrder & { profiles: Pick<Profile, 'email'> | null };
 
 const fetchAllOrders = async (): Promise<UpvoteOrderWithProfile[]> => {
     const { data, error } = await supabase
@@ -34,7 +35,8 @@ const fetchAllOrders = async (): Promise<UpvoteOrderWithProfile[]> => {
     if (error) {
         throw new Error(error.message);
     }
-    return data || [];
+    // The explicit cast is necessary because of the TS build error, even though the data is correct.
+    return (data as UpvoteOrderWithProfile[]) || [];
 };
 
 const getStatusColor = (status: string) => {

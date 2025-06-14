@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,9 +12,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle } from 'lucide-react';
-import { Tables } from '@/integrations/supabase/types';
 
-type RedditAccount = Tables<'reddit_accounts'>;
+// Manually defining the type to fix build errors from stale Supabase types.
+type RedditAccount = {
+    id: string; // uuid
+    created_at: string;
+    username: string;
+    password: string;
+    email: string;
+    email_password: string;
+    post_karma: number;
+    comment_karma: number;
+    total_karma: number;
+    account_age_years: number | null;
+    profile_url: string | null;
+    status: "available" | "sold";
+    buy_price: number;
+    sell_price: number;
+    created_by_admin_id: string | null; // uuid
+    sold_to_user_id: string | null; // uuid
+    sold_at: string | null;
+};
 
 const accountSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -30,10 +47,10 @@ const accountSchema = z.object({
   sell_price: z.coerce.number().min(0),
 });
 
-async function fetchAccounts() {
+async function fetchAccounts(): Promise<RedditAccount[]> {
   const { data, error } = await supabase.from('reddit_accounts').select('*').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return data;
+  return data as RedditAccount[];
 }
 
 export const AdminRedditAccounts = () => {
