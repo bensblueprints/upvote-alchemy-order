@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,8 +23,9 @@ import {
 } from "@/components/ui/alert-dialog"
 
 type UpvoteOrder = Tables<'upvote_orders'>;
+type UpvoteOrderWithProfile = UpvoteOrder & { profiles: { email: string } | null };
 
-const fetchAllOrders = async () => {
+const fetchAllOrders = async (): Promise<UpvoteOrderWithProfile[]> => {
     const { data, error } = await supabase
         .from('upvote_orders')
         .select('*, profiles(email)')
@@ -34,7 +34,7 @@ const fetchAllOrders = async () => {
     if (error) {
         throw new Error(error.message);
     }
-    return data;
+    return data || [];
 };
 
 const getStatusColor = (status: string) => {
@@ -54,15 +54,18 @@ const getServiceLabel = (serviceId: number) => {
 export const AdminDashboard = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const [refundOrder, setRefundOrder] = useState<UpvoteOrder | null>(null);
+    const [refundOrder, setRefundOrder] = useState<UpvoteOrderWithProfile | null>(null);
 
-    const { data: orders, isLoading, error } = useQuery<any[]>({
+    const { data: orders, isLoading, error } = useQuery<UpvoteOrderWithProfile[]>({
         queryKey: ['allUpvoteOrders'],
         queryFn: fetchAllOrders,
-        onError: (err: any) => {
-            toast({ title: 'Error fetching orders', description: err.message, variant: 'destructive' });
-        }
     });
+
+    useEffect(() => {
+        if (error) {
+            toast({ title: 'Error fetching orders', description: error.message, variant: 'destructive' });
+        }
+    }, [error, toast]);
 
     const updateOrderStatusMutation = useMutation({
         mutationFn: async ({ orderId, status }: { orderId: number, status: string }) => {
@@ -108,7 +111,7 @@ export const AdminDashboard = () => {
     };
 
     if (isLoading) return <div className="text-center p-8">Loading all orders...</div>;
-    if (error) return <div className="text-center p-8 text-red-600">Error loading orders.</div>;
+    if (error) return <div className="text-center p-8 text-red-600">Error loading orders. Please try again.</div>;
 
     return (
         <div className="space-y-6">
