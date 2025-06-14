@@ -1,10 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, MessageSquare, Clock, DollarSign, Wallet, Loader2 } from 'lucide-react';
-import { useProfile } from '@/hooks/useProfile';
+import { TrendingUp, MessageSquare, Clock, DollarSign } from 'lucide-react';
 
 export const Dashboard = () => {
-  const { data: profile, isLoading: isLoadingProfile } = useProfile();
-  
   const stats = [
     {
       title: 'Total Orders',
@@ -43,37 +40,11 @@ export const Dashboard = () => {
     { id: '1891777', type: 'Comment reply', status: 'Completed', votes: '-', date: '2024-06-13' },
   ];
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined) {
-      return '$0.00';
-    }
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount));
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">Monitor your Reddit marketing campaigns</p>
-        </div>
-        
-        {/* Balance Counter */}
-        <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <Wallet className="w-8 h-8" />
-              <div>
-                <p className="text-orange-100 text-sm">Available Balance</p>
-                {isLoadingProfile ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <p className="text-2xl font-bold">{formatCurrency(profile?.balance)}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-2">Monitor your Reddit marketing campaigns</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

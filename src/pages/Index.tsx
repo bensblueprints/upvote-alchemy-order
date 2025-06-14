@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
@@ -10,6 +9,7 @@ import { Account } from '@/components/Account';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Header } from '@/components/Header';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,11 +64,14 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="flex-1 p-6">
-        {renderContent()}
-      </main>
+      <div className="flex flex-col flex-1">
+        <Header />
+        <main className="flex-1 p-6 overflow-y-auto">
+          {renderContent()}
+        </main>
+      </div>
       <Toaster />
     </div>
   );
