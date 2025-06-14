@@ -1,7 +1,21 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, MessageSquare, Clock, DollarSign } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Tables } from '@/integrations/supabase/types';
+import { SERVICE_OPTIONS } from '@/lib/api';
+import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type UpvoteOrder = Tables<'upvote_orders'>;
 
 export const Dashboard = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
   const stats = [
     {
       title: 'Total Orders',
@@ -33,12 +47,49 @@ export const Dashboard = () => {
     },
   ];
 
-  const recentOrders = [
-    { id: '1891780', type: 'Post upvotes', status: 'Completed', votes: '50/50', date: '2024-06-14' },
-    { id: '1891779', type: 'Comment upvotes', status: 'In Progress', votes: '23/40', date: '2024-06-14' },
-    { id: '1891778', type: 'Post downvotes', status: 'Pending', votes: '0/25', date: '2024-06-13' },
-    { id: '1891777', type: 'Comment reply', status: 'Completed', votes: '-', date: '2024-06-13' },
-  ];
+  const fetchRecentOrders = async () => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('upvote_orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(4);
+    if (error) {
+      toast({ title: 'Error fetching recent orders', description: error.message, variant: 'destructive' });
+      throw new Error(error.message);
+    }
+    return data;
+  };
+
+  const { data: recentOrders, isLoading: isLoadingOrders } = useQuery<UpvoteOrder[]>({
+    queryKey: ['recentUpvoteOrders', user?.id],
+    queryFn: fetchRecentOrders,
+    enabled: !!user,
+  });
+
+  const getServiceLabel = (serviceId: number) => {
+    return SERVICE_OPTIONS.find(opt => opt.value === serviceId)?.label || 'Unknown Service';
+  };
+
+  const getStatusDotColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed': return 'bg-green-500';
+      case 'in progress': return 'bg-orange-500';
+      case 'pending': return 'bg-yellow-500';
+      case 'cancelled': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+  
+  const getStatusBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'in progress': return 'bg-orange-100 text-orange-800';
+      case 'pending': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -74,30 +125,47 @@ export const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                  <div>
-                    <p className="font-medium">Order #{order.id}</p>
-                    <p className="text-sm text-gray-600">{order.type}</p>
-                  </div>
-                </div>
-                <div className="text-right">
+            {isLoadingOrders ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600">{order.votes}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      order.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      order.status === 'In Progress' ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {order.status}
-                    </span>
-                    <span className="text-sm text-gray-500">{order.date}</span>
+                    <Skeleton className="w-2 h-2 rounded-full" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <Skeleton className="h-4 w-20" />
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : recentOrders && recentOrders.length > 0 ? (
+              recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-2 h-2 rounded-full ${getStatusDotColor(order.status)}`}></div>
+                    <div>
+                      <p className="font-medium">Order #{order.id}</p>
+                      <p className="text-sm text-gray-600">{getServiceLabel(order.service)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm text-gray-600">{order.quantity} votes</span>
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                      <span className="text-sm text-gray-500">{format(new Date(order.created_at), 'yyyy-MM-dd')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-gray-500 py-8">No recent orders found.</p>
+            )}
           </div>
         </CardContent>
       </Card>
