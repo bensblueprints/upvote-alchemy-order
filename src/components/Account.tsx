@@ -1,17 +1,20 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Eye, EyeOff } from 'lucide-react';
+import { Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const Account = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKey] = useState('********************');
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
   const copyApiKey = () => {
     navigator.clipboard.writeText(apiKey);
@@ -19,6 +22,13 @@ export const Account = () => {
       title: 'API Key Copied',
       description: 'Your API key has been copied to clipboard.',
     });
+  };
+
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) {
+      return '$0.00';
+    }
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount));
   };
 
   return (
@@ -37,7 +47,7 @@ export const Account = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" value="user@example.com" disabled />
+              <Input id="email" value={user?.email || ''} disabled />
             </div>
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
@@ -128,7 +138,11 @@ export const Account = () => {
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-medium">Current Balance</span>
-                <span className="text-lg font-bold text-green-600">$156.50</span>
+                {isLoadingProfile ? (
+                   <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                   <span className="text-lg font-bold text-green-600">{formatCurrency(profile?.balance)}</span>
+                )}
               </div>
               <div className="text-sm text-gray-600">Available for orders</div>
             </div>

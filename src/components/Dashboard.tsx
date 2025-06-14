@@ -1,8 +1,10 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, MessageSquare, Clock, DollarSign, Wallet } from 'lucide-react';
+import { TrendingUp, MessageSquare, Clock, DollarSign, Wallet, Loader2 } from 'lucide-react';
+import { useProfile } from '@/hooks/useProfile';
 
 export const Dashboard = () => {
+  const { data: profile, isLoading: isLoadingProfile } = useProfile();
+  
   const stats = [
     {
       title: 'Total Orders',
@@ -41,6 +43,13 @@ export const Dashboard = () => {
     { id: '1891777', type: 'Comment reply', status: 'Completed', votes: '-', date: '2024-06-13' },
   ];
 
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) {
+      return '$0.00';
+    }
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(amount));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,7 +65,11 @@ export const Dashboard = () => {
               <Wallet className="w-8 h-8" />
               <div>
                 <p className="text-orange-100 text-sm">Available Balance</p>
-                <p className="text-2xl font-bold">$156.50</p>
+                {isLoadingProfile ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <p className="text-2xl font-bold">{formatCurrency(profile?.balance)}</p>
+                )}
               </div>
             </div>
           </CardContent>
