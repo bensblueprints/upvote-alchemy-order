@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,14 +49,21 @@ const accountSchema = z.object({
 });
 
 async function fetchAccounts(): Promise<RedditAccount[]> {
-  const { data, error } = await supabase.from('reddit_accounts').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from('reddit_accounts' as any)
+    .select('*')
+    .order('created_at', { ascending: false });
+  
   if (error) throw new Error(error.message);
   return data as RedditAccount[];
 }
 
 export const AdminRedditAccounts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: accounts, isLoading } = useQuery<RedditAccount[]>({ queryKey: ['reddit_accounts'], queryFn: fetchAccounts });
+  const { data: accounts, isLoading } = useQuery<RedditAccount[]>({ 
+    queryKey: ['reddit_accounts'], 
+    queryFn: fetchAccounts 
+  });
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -72,7 +80,7 @@ export const AdminRedditAccounts = () => {
     mutationFn: async (values: z.infer<typeof accountSchema>) => {
       if (!user) throw new Error('User not authenticated');
       const { data, error } = await supabase
-        .from('reddit_accounts')
+        .from('reddit_accounts' as any)
         .insert([{ ...values, created_by_admin_id: user.id }])
         .select();
       

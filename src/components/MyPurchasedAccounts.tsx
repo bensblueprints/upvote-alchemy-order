@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,7 +31,11 @@ type RedditAccount = {
 
 const fetchMyPurchasedAccounts = async (userId: string | undefined): Promise<RedditAccount[]> => {
   if (!userId) return [];
-  const { data, error } = await supabase.from('reddit_accounts').select('*').eq('sold_to_user_id', userId);
+  const { data, error } = await supabase
+    .from('reddit_accounts' as any)
+    .select('*')
+    .eq('sold_to_user_id', userId);
+  
   if (error) throw error;
   return data as RedditAccount[];
 };

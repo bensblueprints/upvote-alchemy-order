@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -5,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShieldQuestion } from 'lucide-react';
 
 // Manually defining the type to fix build errors from stale Supabase types.
 type RedditAccount = {
@@ -29,7 +29,12 @@ type RedditAccount = {
 };
 
 const fetchAvailableAccounts = async (): Promise<RedditAccount[]> => {
-  const { data, error } = await supabase.from('reddit_accounts').select('*').eq('status', 'available').order('sell_price', { ascending: true });
+  const { data, error } = await supabase
+    .from('reddit_accounts' as any)
+    .select('*')
+    .eq('status', 'available')
+    .order('sell_price', { ascending: true });
+  
   if (error) throw error;
   return data as RedditAccount[];
 };

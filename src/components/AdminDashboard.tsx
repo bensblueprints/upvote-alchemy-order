@@ -29,14 +29,22 @@ type UpvoteOrderWithProfile = UpvoteOrder & { profiles: Pick<Profile, 'email'> |
 const fetchAllOrders = async (): Promise<UpvoteOrderWithProfile[]> => {
     const { data, error } = await supabase
         .from('upvote_orders')
-        .select('*, profiles(email)')
+        .select(`
+          *,
+          profiles!upvote_orders_user_id_fkey(email)
+        `)
         .order('created_at', { ascending: false });
 
     if (error) {
+        console.error('Database error:', error);
         throw new Error(error.message);
     }
-    // The explicit cast is necessary because of the TS build error, even though the data is correct.
-    return (data as UpvoteOrderWithProfile[]) || [];
+    
+    // Transform the data to match the expected type structure
+    return (data || []).map(order => ({
+        ...order,
+        profiles: order.profiles ? { email: (order.profiles as any).email } : null
+    })) as UpvoteOrderWithProfile[];
 };
 
 const getStatusColor = (status: string) => {

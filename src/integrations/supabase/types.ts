@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          resource_id: string | null
+          resource_type: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource_id?: string | null
+          resource_type: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource_id?: string | null
+          resource_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount_total: number | null
@@ -119,6 +160,81 @@ export type Database = {
         }
         Relationships: []
       }
+      reddit_accounts: {
+        Row: {
+          account_age_years: number | null
+          buy_price: number
+          comment_karma: number
+          created_at: string
+          created_by_admin_id: string | null
+          email: string
+          email_password: string
+          id: string
+          password: string
+          post_karma: number
+          profile_url: string | null
+          sell_price: number
+          sold_at: string | null
+          sold_to_user_id: string | null
+          status: string
+          total_karma: number | null
+          username: string
+        }
+        Insert: {
+          account_age_years?: number | null
+          buy_price?: number
+          comment_karma?: number
+          created_at?: string
+          created_by_admin_id?: string | null
+          email: string
+          email_password: string
+          id?: string
+          password: string
+          post_karma?: number
+          profile_url?: string | null
+          sell_price?: number
+          sold_at?: string | null
+          sold_to_user_id?: string | null
+          status?: string
+          total_karma?: number | null
+          username: string
+        }
+        Update: {
+          account_age_years?: number | null
+          buy_price?: number
+          comment_karma?: number
+          created_at?: string
+          created_by_admin_id?: string | null
+          email?: string
+          email_password?: string
+          id?: string
+          password?: string
+          post_karma?: number
+          profile_url?: string | null
+          sell_price?: number
+          sold_at?: string | null
+          sold_to_user_id?: string | null
+          status?: string
+          total_karma?: number | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reddit_accounts_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reddit_accounts_sold_to_user_id_fkey"
+            columns: ["sold_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -201,6 +317,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      log_audit_event: {
+        Args: {
+          p_action: string
+          p_resource_type: string
+          p_resource_id?: string
+          p_details?: Json
+        }
+        Returns: undefined
+      }
       place_upvote_order: {
         Args: {
           order_link: string
@@ -213,9 +338,17 @@ export type Database = {
           error_message: string
         }[]
       }
+      purchase_reddit_account: {
+        Args: { account_id: string }
+        Returns: string
+      }
       refund_order: {
         Args: { target_order_id: number }
         Returns: string
+      }
+      validate_password_strength: {
+        Args: { password: string }
+        Returns: boolean
       }
     }
     Enums: {
