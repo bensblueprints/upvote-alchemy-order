@@ -8,7 +8,7 @@ import { OrderTracking } from '@/components/OrderTracking';
 import { AddFunds } from '@/components/AddFunds';
 import { Account } from '@/components/Account';
 import { Toaster } from "@/components/ui/toaster";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const Index = () => {
