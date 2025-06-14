@@ -127,6 +127,7 @@ export type Database = {
           id: string
           status: string
           type: string
+          upvote_order_id: number | null
           user_id: string
         }
         Insert: {
@@ -136,6 +137,7 @@ export type Database = {
           id?: string
           status?: string
           type: string
+          upvote_order_id?: number | null
           user_id: string
         }
         Update: {
@@ -145,9 +147,18 @@ export type Database = {
           id?: string
           status?: string
           type?: string
+          upvote_order_id?: number | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_upvote_order"
+            columns: ["upvote_order_id"]
+            isOneToOne: false
+            referencedRelation: "upvote_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       upvote_orders: {
         Row: {
@@ -201,6 +212,10 @@ export type Database = {
           order_id: number
           error_message: string
         }[]
+      }
+      refund_order: {
+        Args: { target_order_id: number }
+        Returns: string
       }
     }
     Enums: {

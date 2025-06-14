@@ -7,10 +7,12 @@ import {
   ClipboardList, 
   User,
   LogOut,
-  Plus
+  Plus,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useProfile } from '@/hooks/useProfile';
 
 interface SidebarProps {
   activeTab: string;
@@ -20,13 +22,14 @@ interface SidebarProps {
 export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const { data: profile } = useProfile();
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
   };
 
-  const menuItems = [
+  const baseMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'order-upvotes', label: 'Order Upvotes', icon: TrendingUp },
     { id: 'order-comments', label: 'Order Comments', icon: MessageSquare },
@@ -34,6 +37,12 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: 'add-funds', label: 'Add Funds', icon: Plus },
     { id: 'account', label: 'Account', icon: User },
   ];
+
+  const menuItems = [...baseMenuItems];
+
+  if (profile?.is_admin) {
+    menuItems.splice(1, 0, { id: 'admin-dashboard', label: 'Admin Dashboard', icon: ShieldCheck });
+  }
 
   return (
     <div className="w-64 bg-white shadow-lg flex flex-col">

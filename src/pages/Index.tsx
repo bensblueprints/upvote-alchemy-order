@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
@@ -10,12 +11,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
+import { useProfile } from '@/hooks/useProfile';
+import { AdminDashboard } from '@/components/AdminDashboard';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: profile } = useProfile();
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
@@ -48,6 +52,8 @@ const Index = () => {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;
+      case 'admin-dashboard':
+        return profile?.is_admin ? <AdminDashboard /> : <Dashboard />;
       case 'order-upvotes':
         return <OrderUpvotes />;
       case 'order-comments':
