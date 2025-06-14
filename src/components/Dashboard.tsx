@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, MessageSquare, Clock, DollarSign } from 'lucide-react';
+import { TrendingUp, MessageSquare, Clock, DollarSign, Wallet } from 'lucide-react';
 
 export const Dashboard = () => {
   const stats = [
@@ -43,9 +43,24 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Monitor your Reddit marketing campaigns</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Monitor your Reddit marketing campaigns</p>
+        </div>
+        
+        {/* Balance Counter */}
+        <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3">
+              <Wallet className="w-8 h-8" />
+              <div>
+                <p className="text-orange-100 text-sm">Available Balance</p>
+                <p className="text-2xl font-bold">$156.50</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
