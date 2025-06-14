@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ export const OrderUpvotes = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +48,7 @@ export const OrderUpvotes = () => {
           description: `Order #${result.order_id} has been created.`,
         });
         setFormData({ link: '', quantity: '', service: '', speed: '' });
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
       } else {
         throw new Error('Failed to submit order. Unknown error.');
       }
