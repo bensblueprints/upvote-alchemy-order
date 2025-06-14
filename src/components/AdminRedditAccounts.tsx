@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -71,7 +72,7 @@ export const AdminRedditAccounts = () => {
       if (!user) throw new Error('User not authenticated');
       const { data, error } = await supabase
         .from('reddit_accounts')
-        .insert([{ ...values, created_by_admin_id: user.id }])
+        .insert({ ...values, created_by_admin_id: user.id })
         .select();
       
       if (error) throw new Error(error.message);
