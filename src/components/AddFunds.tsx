@@ -8,7 +8,7 @@ export const AddFunds = () => {
     {
       name: 'Starter',
       price: '$15',
-      pricePerUpvote: '$0.06',
+      pricePerUpvote: '$0.20',
       discount: null,
       isBestValue: true,
       features: [
@@ -21,7 +21,7 @@ export const AddFunds = () => {
     {
       name: 'Basic',
       price: '$100',
-      pricePerUpvote: '$0.05',
+      pricePerUpvote: '$0.10',
       discount: '20% discount',
       isBestValue: false,
       features: [
@@ -34,7 +34,7 @@ export const AddFunds = () => {
     {
       name: 'Standard',
       price: '$250',
-      pricePerUpvote: '$0.04',
+      pricePerUpvote: '$0.08',
       discount: '40% discount',
       isBestValue: false,
       features: [
@@ -47,7 +47,7 @@ export const AddFunds = () => {
     {
       name: 'Pro',
       price: '$750',
-      pricePerUpvote: '$0.03',
+      pricePerUpvote: '$0.06',
       discount: '60% discount',
       isBestValue: false,
       features: [
@@ -60,7 +60,7 @@ export const AddFunds = () => {
     {
       name: 'Elite',
       price: '$1000',
-      pricePerUpvote: '$0.02',
+      pricePerUpvote: '$0.04',
       discount: '80% discount',
       isBestValue: false,
       features: [
