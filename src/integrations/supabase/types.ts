@@ -97,18 +97,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          balance: number
           created_at: string | null
           email: string
           id: string
           is_admin: boolean | null
         }
         Insert: {
+          balance?: number
           created_at?: string | null
           email: string
           id: string
           is_admin?: boolean | null
         }
         Update: {
+          balance?: number
           created_at?: string | null
           email?: string
           id?: string
@@ -146,12 +149,59 @@ export type Database = {
         }
         Relationships: []
       }
+      upvote_orders: {
+        Row: {
+          created_at: string
+          external_order_id: string | null
+          id: number
+          link: string
+          quantity: number
+          service: number
+          speed: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_order_id?: string | null
+          id?: number
+          link: string
+          quantity: number
+          service: number
+          speed: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_order_id?: string | null
+          id?: number
+          link?: string
+          quantity?: number
+          service?: number
+          speed?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      place_upvote_order: {
+        Args: {
+          order_link: string
+          order_quantity: number
+          order_service: number
+          order_speed: number
+        }
+        Returns: {
+          order_id: number
+          error_message: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

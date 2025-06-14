@@ -1,71 +1,79 @@
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, X } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SERVICE_OPTIONS } from '@/lib/api';
+import { format } from 'date-fns';
+import { Tables } from '@/integrations/supabase/types';
 
-interface OrderStatus {
-  order_number: string;
-  service?: string;
-  status: string;
-  vote_quantity?: number;
-  votes_delivered?: number;
-}
+type UpvoteOrder = Tables<'upvote_orders'>;
 
 export const OrderTracking = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchedOrder, setSearchedOrder] = useState<UpvoteOrder | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Mock data for demonstration
-  const mockOrders = [
-    { id: '1891780', type: 'Post upvotes', status: 'Completed', progress: '50/50', date: '2024-06-14 3:30 PM' },
-    { id: '1891779', type: 'Comment upvotes', status: 'In Progress', progress: '23/40', date: '2024-06-14 2:15 PM' },
-    { id: '1891778', type: 'Post downvotes', status: 'Pending', progress: '0/25', date: '2024-06-13 11:45 AM' },
-    { id: '1891777', type: 'Comment reply', status: 'Completed', progress: 'Done', date: '2024-06-13 9:20 AM' },
-    { id: '1891776', type: 'Post upvotes', status: 'Cancelled', progress: '5/30', date: '2024-06-12 4:10 PM' },
-  ];
+  const fetchOrders = async () => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('upvote_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      toast({ title: 'Error fetching orders', description: error.message, variant: 'destructive' });
+      throw new Error(error.message);
+    }
+    return data;
+  };
+
+  const { data: pastOrders, isLoading: isLoadingPastOrders } = useQuery<UpvoteOrder[]>({
+    queryKey: ['upvoteOrders', user?.id],
+    queryFn: fetchOrders,
+    enabled: !!user,
+  });
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
-    setIsLoading(true);
+    setIsSearching(true);
+    setSearchedOrder(null);
     try {
-      const response = await api.getUpvoteOrderStatus({ order_number: searchQuery });
-      setOrderStatus(response);
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('upvote_orders')
+        .select('*')
+        .eq('id', searchQuery.trim())
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setSearchedOrder(data);
+      } else {
+        toast({
+          title: 'Order not found',
+          description: 'No upvote order found with that ID.',
+        });
+      }
+    } catch (error: any) {
       console.error('Error fetching order status:', error);
       toast({
         title: 'Error',
-        description: 'Failed to fetch order status. Please check the order number.',
+        description: error.message || 'Failed to fetch order status. Please check the order number.',
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCancel = async (orderNumber: string) => {
-    try {
-      const response = await api.cancelUpvoteOrder({ order_number: orderNumber });
-      toast({
-        title: 'Order Cancelled',
-        description: response.message || 'Order has been cancelled successfully.',
-      });
-      // Refresh the order list in a real app
-    } catch (error) {
-      console.error('Error cancelling order:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to cancel order. Only in-progress orders can be cancelled.',
-        variant: 'destructive',
-      });
+      setIsSearching(false);
     }
   };
 
@@ -78,18 +86,22 @@ export const OrderTracking = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+  
+  const getServiceLabel = (serviceId: number) => {
+    return SERVICE_OPTIONS.find(opt => opt.value === serviceId)?.label || 'Unknown Service';
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Order Tracking</h1>
-        <p className="text-gray-600 mt-2">Track and manage your upvote and comment orders</p>
+        <h1 className="text-3xl font-bold text-gray-900">Master Order Dashboard</h1>
+        <p className="text-gray-600 mt-2">Track and manage your upvote orders</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Order</CardTitle>
-          <CardDescription>Enter order number to check status</CardDescription>
+          <CardTitle>Search Upvote Order</CardTitle>
+          <CardDescription>Enter an upvote order number to check its status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex space-x-2">
@@ -97,37 +109,43 @@ export const OrderTracking = () => {
               <Label htmlFor="search" className="sr-only">Order Number</Label>
               <Input
                 id="search"
-                placeholder="Enter order number (e.g., 1891780)"
+                placeholder="Enter order number (e.g., 123)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={isLoading}>
-              {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            <Button onClick={handleSearch} disabled={isSearching}>
+              {isSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </Button>
           </div>
 
-          {orderStatus && (
+          {searchedOrder && (
             <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-              <h3 className="font-semibold mb-2">Order #{orderStatus.order_number}</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <h3 className="font-semibold mb-2">Order #{searchedOrder.id}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Service:</span>
-                  <span className="ml-2">{orderStatus.service || 'N/A'}</span>
+                  <span className="ml-2 font-medium">{getServiceLabel(searchedOrder.service)}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">Status:</span>
-                  <Badge className={`ml-2 ${getStatusColor(orderStatus.status)}`}>
-                    {orderStatus.status}
+                  <Badge className={`ml-2 ${getStatusColor(searchedOrder.status)}`}>
+                    {searchedOrder.status}
                   </Badge>
                 </div>
-                {orderStatus.vote_quantity && (
-                  <div>
-                    <span className="text-gray-600">Progress:</span>
-                    <span className="ml-2">{orderStatus.votes_delivered || 0}/{orderStatus.vote_quantity}</span>
-                  </div>
-                )}
+                <div>
+                    <span className="text-gray-600">Quantity:</span>
+                    <span className="ml-2 font-medium">{searchedOrder.quantity}</span>
+                </div>
+                <div>
+                    <span className="text-gray-600">Date:</span>
+                    <span className="ml-2 font-medium">{format(new Date(searchedOrder.created_at), 'PPp')}</span>
+                </div>
+                <div className="col-span-2">
+                    <span className="text-gray-600">Link:</span>
+                    <a href={searchedOrder.link} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{searchedOrder.link}</a>
+                </div>
               </div>
             </div>
           )}
@@ -136,40 +154,46 @@ export const OrderTracking = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Past Orders</CardTitle>
-          <CardDescription>All your upvote and comment orders</CardDescription>
+          <CardTitle>Your Past Upvote Orders</CardTitle>
+          <CardDescription>A list of all your upvote orders.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {mockOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                  <div>
-                    <p className="font-medium">Order #{order.id}</p>
-                    <p className="text-sm text-gray-600">{order.type}</p>
-                    <p className="text-xs text-gray-500">{order.date}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">{order.progress}</span>
-                  <Badge className={getStatusColor(order.status)}>
-                    {order.status}
-                  </Badge>
-                  {order.status === 'In Progress' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCancel(order.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          {isLoadingPastOrders ? (
+              <p>Loading past orders...</p>
+          ) : pastOrders && pastOrders.length > 0 ? (
+              <Table>
+                  <TableHeader>
+                      <TableRow>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Link</TableHead>
+                          <TableHead>Status</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {pastOrders.map((order) => (
+                          <TableRow key={order.id}>
+                              <TableCell className="font-medium">#{order.id}</TableCell>
+                              <TableCell>{format(new Date(order.created_at), 'PPp')}</TableCell>
+                              <TableCell>{getServiceLabel(order.service)}</TableCell>
+                              <TableCell>{order.quantity}</TableCell>
+                              <TableCell>
+                                <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block w-32">{order.link}</a>
+                              </TableCell>
+                              <TableCell>
+                                  <Badge className={getStatusColor(order.status)}>
+                                      {order.status}
+                                  </Badge>
+                              </TableCell>
+                          </TableRow>
+                      ))}
+                  </TableBody>
+              </Table>
+          ) : (
+              <p className="text-center text-gray-500 py-8">No past upvote orders found.</p>
+          )}
         </CardContent>
       </Card>
     </div>

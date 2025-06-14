@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { api, SPEED_OPTIONS, SERVICE_OPTIONS } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
+import { SPEED_OPTIONS, SERVICE_OPTIONS } from '@/lib/api';
 
 export const OrderUpvotes = () => {
   const [formData, setFormData] = useState({
@@ -24,27 +25,35 @@ export const OrderUpvotes = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await api.submitUpvoteOrder({
-        link: formData.link,
-        quantity: parseInt(formData.quantity),
-        service: parseInt(formData.service) as 1 | 2 | 3 | 4,
-        speed: parseFloat(formData.speed),
+      const { data, error } = await supabase.rpc('place_upvote_order', {
+        order_link: formData.link,
+        order_quantity: parseInt(formData.quantity),
+        order_service: parseInt(formData.service),
+        order_speed: parseFloat(formData.speed),
       });
 
-      if (response.order_number) {
+      if (error) throw error;
+
+      const result = data?.[0];
+
+      if (result?.error_message) {
+        throw new Error(result.error_message);
+      }
+
+      if (result?.order_id) {
         toast({
           title: 'Order Submitted Successfully!',
-          description: `Order #${response.order_number} has been created.`,
+          description: `Order #${result.order_id} has been created.`,
         });
         setFormData({ link: '', quantity: '', service: '', speed: '' });
       } else {
-        throw new Error(response.message || 'Failed to submit order');
+        throw new Error('Failed to submit order. Unknown error.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Order submission error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to submit order. Please check your inputs and try again.',
+        description: error.message || 'Failed to submit order. Please check your inputs and try again.',
         variant: 'destructive',
       });
     } finally {
