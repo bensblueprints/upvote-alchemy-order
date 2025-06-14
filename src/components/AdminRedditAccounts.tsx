@@ -13,27 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, PlusCircle } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
-// Manually defining the type to fix build errors from stale Supabase types.
-type RedditAccount = {
-    id: string; // uuid
-    created_at: string;
-    username: string;
-    password: string;
-    email: string;
-    email_password: string;
-    post_karma: number;
-    comment_karma: number;
-    total_karma: number;
-    account_age_years: number | null;
-    profile_url: string | null;
-    status: "available" | "sold";
-    buy_price: number;
-    sell_price: number;
-    created_by_admin_id: string | null; // uuid
-    sold_to_user_id: string | null; // uuid
-    sold_at: string | null;
-};
+// Use the generated type from Supabase
+type RedditAccount = Tables<'reddit_accounts'>;
 
 const accountSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -50,12 +33,12 @@ const accountSchema = z.object({
 
 async function fetchAccounts(): Promise<RedditAccount[]> {
   const { data, error } = await supabase
-    .from('reddit_accounts' as any)
+    .from('reddit_accounts')
     .select('*')
     .order('created_at', { ascending: false });
   
   if (error) throw new Error(error.message);
-  return data as RedditAccount[];
+  return data || [];
 }
 
 export const AdminRedditAccounts = () => {
@@ -80,7 +63,7 @@ export const AdminRedditAccounts = () => {
     mutationFn: async (values: z.infer<typeof accountSchema>) => {
       if (!user) throw new Error('User not authenticated');
       const { data, error } = await supabase
-        .from('reddit_accounts' as any)
+        .from('reddit_accounts')
         .insert([{ ...values, created_by_admin_id: user.id }])
         .select();
       
