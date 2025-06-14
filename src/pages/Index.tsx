@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
@@ -13,6 +12,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { useProfile } from '@/hooks/useProfile';
 import { AdminDashboard } from '@/components/AdminDashboard';
+import { BuyRedditAccounts } from '@/components/BuyRedditAccounts';
+import { AdminRedditAccounts } from '@/components/AdminRedditAccounts';
+import { MyPurchasedAccounts } from '@/components/MyPurchasedAccounts';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -54,6 +56,12 @@ const Index = () => {
         return <Dashboard />;
       case 'admin-dashboard':
         return profile?.is_admin ? <AdminDashboard /> : <Dashboard />;
+      case 'admin-manage-accounts':
+        return profile?.is_admin ? <AdminRedditAccounts /> : <Dashboard />;
+      case 'buy-accounts':
+        return <BuyRedditAccounts />;
+      case 'my-purchases':
+        return <MyPurchasedAccounts />;
       case 'order-upvotes':
         return <OrderUpvotes />;
       case 'order-comments':

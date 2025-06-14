@@ -8,7 +8,10 @@ import {
   User,
   LogOut,
   Plus,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBag,
+  KeyRound,
+  Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -32,6 +35,8 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   const baseMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'order-upvotes', label: 'Order Upvotes', icon: TrendingUp },
+    { id: 'buy-accounts', label: 'Buy Accounts', icon: ShoppingBag },
+    { id: 'my-purchases', label: 'My Purchases', icon: KeyRound },
     { id: 'order-comments', label: 'Order Comments', icon: MessageSquare },
     { id: 'order-tracking', label: 'Order Tracking', icon: ClipboardList },
     { id: 'add-funds', label: 'Add Funds', icon: Plus },
@@ -42,6 +47,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
 
   if (profile?.is_admin) {
     menuItems.splice(1, 0, { id: 'admin-dashboard', label: 'Admin Dashboard', icon: ShieldCheck });
+    menuItems.splice(4, 0, { id: 'admin-manage-accounts', label: 'Manage Accounts', icon: Users });
   }
 
   return (
