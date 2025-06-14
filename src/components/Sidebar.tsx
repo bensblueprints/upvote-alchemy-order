@@ -29,7 +29,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   return (
     <div className="w-64 bg-white shadow-lg">
       <div className="p-6 border-b">
-        <h1 className="text-2xl font-bold text-orange-500">BuyUpvotes</h1>
+        <h1 className="text-2xl font-bold text-orange-500">RedditTraffic.XYZ</h1>
         <p className="text-sm text-gray-500 mt-1">Reddit Marketing Platform</p>
       </div>
       

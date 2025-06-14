@@ -103,12 +103,24 @@ export const AddFunds = () => {
     // Handle package selection here
   };
 
-  const handleDeposit = () => {
+  const handleStripePayment = async () => {
     const amount = parseFloat(depositAmount);
     if (amount && amount >= 15) {
       const tier = getApplicableTier(amount);
-      console.log(`Depositing $${amount} with ${tier.name} tier pricing using ${paymentMethod} payment`);
-      // Handle deposit here
+      console.log(`Processing Stripe payment for $${amount} with ${tier.name} tier pricing using ${paymentMethod} payment`);
+      
+      // Here you would integrate with Stripe
+      // For now, we'll simulate opening Stripe checkout
+      alert(`Redirecting to Stripe checkout for $${amount} payment via ${paymentMethod}`);
+      
+      // In a real implementation, this would be:
+      // const response = await fetch('/api/create-checkout-session', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ amount: amount * 100, paymentMethod })
+      // });
+      // const { url } = await response.json();
+      // window.open(url, '_blank');
     }
   };
 
@@ -173,11 +185,11 @@ export const AddFunds = () => {
                 min="15"
               />
               <Button 
-                onClick={handleDeposit}
+                onClick={handleStripePayment}
                 disabled={!depositAmount || parseFloat(depositAmount) < 15}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-8 h-12"
               >
-                Calculate
+                Pay Now
               </Button>
             </div>
             
