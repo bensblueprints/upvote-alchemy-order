@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, Star, CreditCard, Bitcoin } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 export const AddFunds = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'crypto'>('credit');
+  const { toast } = useToast();
 
   const packages = [
     {
@@ -99,28 +102,44 @@ export const AddFunds = () => {
   };
 
   const handleSelectPackage = (packageName: string) => {
-    console.log(`Selected package: ${packageName}`);
-    // Handle package selection here
+    const selectedPackage = packages.find(p => p.name === packageName);
+    if (selectedPackage) {
+        setDepositAmount(String(selectedPackage.minAmount));
+    }
   };
 
   const handleStripePayment = async () => {
     const amount = parseFloat(depositAmount);
-    if (amount && amount >= 15) {
-      const tier = getApplicableTier(amount);
-      console.log(`Processing Stripe payment for $${amount} with ${tier.name} tier pricing using ${paymentMethod} payment`);
-      
-      // Here you would integrate with Stripe
-      // For now, we'll simulate opening Stripe checkout
-      alert(`Redirecting to Stripe checkout for $${amount} payment via ${paymentMethod}`);
-      
-      // In a real implementation, this would be:
-      // const response = await fetch('/api/create-checkout-session', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ amount: amount * 100, paymentMethod })
-      // });
-      // const { url } = await response.json();
-      // window.open(url, '_blank');
+    if (!amount || amount < 15) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Minimum deposit is $15.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { amount: Math.round(amount * 100) }, // amount in cents
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('Could not retrieve payment URL.');
+      }
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      toast({
+        title: 'Payment Error',
+        description: error.message || 'There was an issue processing your payment. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
