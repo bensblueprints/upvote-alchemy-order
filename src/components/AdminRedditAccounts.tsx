@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,13 +19,13 @@ type RedditAccount = Tables<'reddit_accounts'>;
 
 const accountSchema = z.object({
   username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
-  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
   email_password: z.string().min(1, 'Email password is required'),
   post_karma: z.coerce.number().int().min(0),
   comment_karma: z.coerce.number().int().min(0),
-  account_age_years: z.coerce.number().int().min(0).optional(),
-  profile_url: z.string().url('Invalid URL').optional(),
+  account_age_years: z.coerce.number().min(0).nullable(),
+  profile_url: z.string().url().or(z.literal('')).nullable(),
   buy_price: z.coerce.number().min(0),
   sell_price: z.coerce.number().min(0),
 });
@@ -54,8 +53,16 @@ export const AdminRedditAccounts = () => {
   const form = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
+      username: '',
+      password: '',
+      email: '',
+      email_password: '',
       post_karma: 0,
       comment_karma: 0,
+      account_age_years: 0,
+      profile_url: '',
+      buy_price: 0,
+      sell_price: 0,
     },
   });
 
