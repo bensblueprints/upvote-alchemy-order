@@ -6,7 +6,9 @@ import {
   MessageSquare, 
   ClipboardList, 
   User,
-  LogOut
+  LogOut,
+  Wallet,
+  Plus
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +22,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: 'order-upvotes', label: 'Order Upvotes', icon: TrendingUp },
     { id: 'order-comments', label: 'Order Comments', icon: MessageSquare },
     { id: 'order-tracking', label: 'Order Tracking', icon: ClipboardList },
+    { id: 'add-funds', label: 'Add Funds', icon: Plus },
     { id: 'account', label: 'Account', icon: User },
   ];
 
