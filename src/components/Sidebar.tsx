@@ -7,9 +7,10 @@ import {
   ClipboardList, 
   User,
   LogOut,
-  Wallet,
   Plus
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   activeTab: string;
@@ -17,6 +18,14 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'order-upvotes', label: 'Order Upvotes', icon: TrendingUp },
@@ -27,13 +36,13 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
   ];
 
   return (
-    <div className="w-64 bg-white shadow-lg">
+    <div className="w-64 bg-white shadow-lg flex flex-col">
       <div className="p-6 border-b">
         <h1 className="text-2xl font-bold text-orange-500">RedditTraffic.XYZ</h1>
         <p className="text-sm text-gray-500 mt-1">Reddit Marketing Platform</p>
       </div>
       
-      <nav className="mt-6">
+      <nav className="mt-6 flex-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -54,8 +63,8 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
         })}
       </nav>
 
-      <div className="absolute bottom-0 w-64 p-6 border-t">
-        <button className="flex items-center text-gray-500 hover:text-gray-700 transition-colors">
+      <div className="p-6 border-t">
+        <button onClick={handleSignOut} className="flex items-center text-gray-500 hover:text-gray-700 transition-colors w-full">
           <LogOut className="w-5 h-5 mr-3" />
           Sign Out
         </button>

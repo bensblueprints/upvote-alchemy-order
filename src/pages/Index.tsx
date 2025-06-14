@@ -9,20 +9,23 @@ import { AddFunds } from '@/components/AddFunds';
 import { Account } from '@/components/Account';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
+    const query = new URLSearchParams(location.search);
     if (query.get('payment_status') === 'success') {
       toast({
         title: "Payment Successful!",
         description: "Your funds have been added and should reflect in your balance shortly.",
       });
-      // Clean up URL
-      window.history.replaceState(null, '', window.location.pathname);
+      // Clean up URL and navigate to add-funds tab
+      navigate('/?tab=add-funds', { replace: true });
     }
 
     if (query.get('payment_status') === 'cancelled') {
@@ -32,9 +35,14 @@ const Index = () => {
         variant: "destructive"
       });
        // Clean up URL
-      window.history.replaceState(null, '', window.location.pathname);
+      navigate('/', { replace: true });
     }
-  }, [toast]);
+
+    const tab = query.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [location.search, navigate, toast]);
 
   const renderContent = () => {
     switch (activeTab) {
