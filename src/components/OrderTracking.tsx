@@ -49,10 +49,21 @@ export const OrderTracking = () => {
     setIsSearching(true);
     setSearchedOrder(null);
     try {
+      const orderId = parseInt(searchQuery.trim(), 10);
+      if (isNaN(orderId)) {
+        toast({
+          title: 'Invalid Order ID',
+          description: 'Please enter a numeric order ID.',
+          variant: 'destructive',
+        });
+        setIsSearching(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('upvote_orders')
         .select('*')
-        .eq('id', searchQuery.trim())
+        .eq('id', orderId)
         .maybeSingle();
       
       if (error) throw error;
