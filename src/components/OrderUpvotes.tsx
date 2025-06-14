@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SPEED_OPTIONS, SERVICE_OPTIONS } from '@/lib/api';
+import { useProfile } from '@/hooks/useProfile';
 
 export const OrderUpvotes = () => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,31 @@ export const OrderUpvotes = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+
+  const pricing = useMemo(() => {
+    const balance = profile?.balance ?? 0;
+    if (balance >= 1000) return { tier: 'Elite', postVote: 0.04, commentVote: 0.032 };
+    if (balance >= 750) return { tier: 'Pro', postVote: 0.06, commentVote: 0.048 };
+    if (balance >= 250) return { tier: 'Standard', postVote: 0.08, commentVote: 0.064 };
+    if (balance >= 100) return { tier: 'Basic', postVote: 0.10, commentVote: 0.08 };
+    if (balance >= 15) return { tier: 'Starter', postVote: 0.20, commentVote: 0.16 };
+    return { tier: 'Starter', postVote: 0.20, commentVote: 0.16 };
+  }, [profile]);
+
+  const totalCost = useMemo(() => {
+    const quantity = parseInt(formData.quantity) || 0;
+    const service = parseInt(formData.service);
+    if (!quantity || !service) return 0;
+
+    if (service === 1 || service === 2) { // Post votes
+      return quantity * pricing.postVote;
+    }
+    if (service === 3 || service === 4) { // Comment votes
+      return quantity * pricing.commentVote;
+    }
+    return 0;
+  }, [formData.quantity, formData.service, pricing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +170,13 @@ export const OrderUpvotes = () => {
                 </Select>
               </div>
 
+              {totalCost > 0 && (
+                <div className="p-4 bg-gray-100 rounded-lg text-right">
+                  <p className="text-sm text-gray-600">Estimated Cost</p>
+                  <p className="text-xl font-bold text-gray-900">${totalCost.toFixed(2)}</p>
+                </div>
+              )}
+
               <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600" disabled={isSubmitting}>
                 {isSubmitting ? 'Submitting...' : 'Submit Order'}
               </Button>
@@ -153,24 +186,27 @@ export const OrderUpvotes = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pricing Information</CardTitle>
-            <CardDescription>Current rates for upvote services</CardDescription>
+            <CardTitle>Your Dynamic Pricing</CardTitle>
+            {profile ? (
+              <CardDescription>
+                Your current tier:{' '}
+                <span className="font-bold text-orange-500">{pricing.tier}</span>
+              </CardDescription>
+            ) : (
+              <CardDescription>Loading your pricing...</CardDescription>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-orange-50 rounded-lg">
-              <h4 className="font-semibold text-orange-800">Post Upvotes</h4>
-              <p className="text-sm text-orange-600">$0.10 per upvote</p>
-            </div>
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-semibold text-red-800">Post Downvotes</h4>
-              <p className="text-sm text-red-600">$0.10 per downvote</p>
+              <h4 className="font-semibold text-orange-800">Post Votes</h4>
+              <p className="text-sm text-orange-600">${pricing.postVote.toFixed(3)} per vote</p>
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-blue-800">Comment Votes</h4>
-              <p className="text-sm text-blue-600">$0.08 per vote</p>
+              <p className="text-sm text-blue-600">${pricing.commentVote.toFixed(4)} per vote</p>
             </div>
             <div className="text-xs text-gray-500 mt-4">
-              * Prices are estimates. Actual pricing may vary based on complexity and demand.
+              * Your pricing is based on your account balance. Add funds to get better rates.
             </div>
           </CardContent>
         </Card>
