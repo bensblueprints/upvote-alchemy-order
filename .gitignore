@@ -7,6 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+CORS_SOLUTION.md
+DEPLOYMENT.md
+*.md
+setup-database.sql
+update_upvote_order.sql
+
 node_modules
 dist
 dist-ssr
