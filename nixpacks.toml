@@ -1,11 +1,11 @@
-[phases.setup]
-nixPkgs = ['nodejs_18', 'npm']
+[variables]
+NODE_VERSION = "18"
 
 [phases.install]
-cmds = ['npm ci']
+cmds = ['npm ci --omit=dev']
 
 [phases.build]
 cmds = ['npm run build']
 
 [start]
-cmd = 'npx serve -s dist -l $PORT' 
+cmd = 'npm start' 
