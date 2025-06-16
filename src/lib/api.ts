@@ -49,9 +49,22 @@ export const SERVICE_OPTIONS = [
 ];
 
 export const SPEED_OPTIONS = [
-  { value: 0.1656, label: 'Standard (24-48 hours)' },
-  { value: 0.3312, label: 'Express (12-24 hours)' },
-  { value: 0.6624, label: 'Rush (6-12 hours)' },
+  // Slow delivery options (votes per day)
+  { value: 0.0414, label: 'Super Slow (1 vote/day)' },
+  { value: 0.0828, label: 'Very Slow (2 votes/day)' },
+  { value: 0.1242, label: 'Slow (3 votes/day)' },
+  { value: 0.1656, label: 'Moderate (4 votes/day)' },
+  { value: 0.207, label: 'Medium (5 votes/day)' },
+  { value: 0.2484, label: 'Regular (6 votes/day)' },
+  
+  // Fast delivery options (votes per minute)
+  { value: 12, label: 'Steady (1 vote/6 minutes)' },
+  { value: 30, label: 'Quick (1 vote/2 minutes)' },
+  { value: 60, label: 'Fast (1 vote/minute)' },
+  { value: 120, label: 'Very Fast (2 votes/minute)' },
+  { value: 180, label: 'Rapid (3 votes/minute)' },
+  { value: 240, label: 'Super Fast (4 votes/minute)' },
+  { value: 300, label: 'Lightning (5 votes/minute)' },
 ];
 
 export const api = {
