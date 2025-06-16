@@ -62,24 +62,30 @@ export const OrderUpvotes = () => {
         throw new Error('Quantity must be between 1 and 500');
       }
 
-      // Save order to Supabase using the place_upvote_order function
-      const { data, error } = await supabase.rpc('place_upvote_order', {
-        order_link: formData.link,
-        order_quantity: quantity,
-        order_service: parseInt(formData.service),
-        order_speed: parseFloat(formData.speed),
+      // Submit order using the new API function that handles both local storage AND BuyUpvotes.io submission
+      const response = await api.submitUpvoteOrder({
+        link: formData.link,
+        quantity: quantity,
+        service: parseInt(formData.service) as 1 | 2 | 3 | 4,
+        speed: parseFloat(formData.speed),
       });
 
-      if (error || !data || data[0]?.error_message) {
-        throw new Error(error?.message || data[0]?.error_message || 'Failed to submit order');
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to submit order');
       }
+
+      const orderInfo = response.data?.external_order_number 
+        ? `Order #${response.data.order_number} submitted to fulfillment service (External ID: ${response.data.external_order_number})`
+        : `Order #${response.data?.order_number} created locally`;
 
       toast({
         title: 'Order Submitted Successfully!',
-        description: `Order #${data[0].order_id} has been created and is pending.`,
+        description: orderInfo,
       });
+      
       setFormData({ link: '', quantity: '', service: '', speed: '' });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      
     } catch (error: any) {
       console.error('Order submission error:', error);
       toast({
