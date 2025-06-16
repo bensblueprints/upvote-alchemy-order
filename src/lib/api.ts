@@ -36,6 +36,7 @@ export interface ApiResponse<T> {
 export interface OrderSubmissionResult {
   order_number: string;
   external_order_number?: string;
+  note?: string;
 }
 
 export interface OrderStatus {
@@ -93,40 +94,43 @@ export const api = {
 
       const localOrderId = result[0].order_id.toString();
 
-      // Now submit to BuyUpvotes.io API for actual fulfillment
+      // Now submit to BuyUpvotes.io API for actual fulfillment via Netlify function
       try {
-        const API_KEY = await getApiKeyFromSettings();
-        const headers = {
-          'Content-Type': 'application/json',
-          'X-API-Key': API_KEY,
-        };
-
-        console.log('Submitting upvote order to BuyUpvotes.io API:', `${API_BASE_URL}/upvote_order/submit/`);
+        console.log('Submitting upvote order via Netlify function...');
         console.log('Order data:', data);
 
-        const apiResponse = await fetch(`${API_BASE_URL}/upvote_order/submit/`, {
+        // Use Netlify function instead of direct API call to avoid CORS
+        const functionUrl = '/.netlify/functions/submit-upvote-order';
+        const apiResponse = await fetch(functionUrl, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(data),
         });
 
-        console.log('BuyUpvotes.io API Response status:', apiResponse.status);
+        console.log('Netlify function response status:', apiResponse.status);
         const apiResponseData = await apiResponse.json();
-        console.log('BuyUpvotes.io API Response data:', apiResponseData);
+        console.log('Netlify function response data:', apiResponseData);
 
-        if (!apiResponse.ok) {
-          throw new Error(apiResponseData.message || 'Failed to submit order to BuyUpvotes.io API');
+        if (!apiResponse.ok || !apiResponseData.success) {
+          throw new Error(apiResponseData.message || 'Failed to submit order via serverless function');
         }
 
         // Update the local order with the external order number
         if (apiResponseData.data?.order_number) {
-          await supabase
-            .from('upvote_orders')
-            .update({ 
-              external_order_id: apiResponseData.data.order_number,
-              status: 'submitted_to_api'
-            })
-            .eq('id', parseInt(localOrderId));
+          try {
+            await supabase
+              .from('upvote_orders')
+              .update({ 
+                external_order_id: apiResponseData.data.order_number,
+                status: 'submitted_to_api'
+              })
+              .eq('id', parseInt(localOrderId));
+          } catch (updateError) {
+            console.warn('Failed to update local order with external ID:', updateError);
+            // Continue anyway - the order was submitted successfully
+          }
         }
 
         return {
@@ -138,21 +142,69 @@ export const api = {
         };
 
       } catch (apiError: any) {
-        console.error('BuyUpvotes.io API Error:', apiError);
+        console.error('Order submission error:', apiError);
         
-        // Mark the local order as failed
-        await supabase
-          .from('upvote_orders')
-          .update({ 
-            status: 'api_submission_failed',
-            error_message: apiError.message 
-          })
-          .eq('id', parseInt(localOrderId));
+        // Check if it's a function not found error (local development)
+        if (apiError.name === 'TypeError' && apiError.message === 'Failed to fetch') {
+          console.warn('Netlify function not available (likely local development). Order stored locally for admin processing.');
+          
+          // Mark the local order for manual processing
+          try {
+            await supabase
+              .from('upvote_orders')
+              .update({ 
+                status: 'pending_api_submission',
+                error_message: 'Netlify function not available - requires deployment'
+              })
+              .eq('id', parseInt(localOrderId));
+          } catch (updateError) {
+            console.warn('Failed to update order status:', updateError);
+          }
 
-        // Could optionally refund the user here
-        // For now, we'll let admin handle failed submissions manually
+          // Return success with a note about manual processing
+          return {
+            success: true,
+            data: { 
+              order_number: localOrderId,
+              note: 'Order stored locally - deploy to Netlify for automatic processing'
+            }
+          };
+        }
         
-        throw new Error(`Order stored locally but failed to submit to fulfillment service: ${apiError.message}`);
+        // For other API errors, automatically refund the customer
+        try {
+          console.log('API submission failed, automatically refunding order...');
+          
+          // Call the refund function
+          const { data: refundResult, error: refundError } = await supabase
+            .rpc('refund_order', { target_order_id: parseInt(localOrderId) });
+          
+          if (refundError) {
+            console.error('Refund failed:', refundError);
+            // Still mark the order as failed even if refund fails
+            await supabase
+              .from('upvote_orders')
+              .update({ 
+                status: 'api_submission_failed',
+                error_message: `API submission failed: ${apiError.message}. Refund attempt failed: ${refundError.message}`
+              })
+              .eq('id', parseInt(localOrderId));
+          } else {
+            console.log('Refund result:', refundResult);
+            // Mark the order as cancelled and refunded
+            await supabase
+              .from('upvote_orders')
+              .update({ 
+                status: 'Cancelled',
+                error_message: `API submission failed: ${apiError.message}. Customer automatically refunded.`
+              })
+              .eq('id', parseInt(localOrderId));
+          }
+        } catch (updateError) {
+          console.warn('Failed to process refund or update order status:', updateError);
+        }
+
+        throw new Error(`Order failed and customer has been automatically refunded: ${apiError.message}`);
       }
 
     } catch (error: any) {
@@ -231,33 +283,36 @@ export const api = {
 
   async submitCommentOrder(data: CommentOrderRequest): Promise<ApiResponse<{ order_number: string }>> {
     try {
-      const API_KEY = await getApiKeyFromSettings();
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      };
-      console.log('Submitting comment order to:', `${API_BASE_URL}/comment_order/submit/`);
+      console.log('Submitting comment order via Netlify function...');
       console.log('Order data:', data);
 
-      const response = await fetch(`${API_BASE_URL}/comment_order/submit/`, {
+      // Use Netlify function instead of direct API call to avoid CORS
+      const functionUrl = '/.netlify/functions/submit-comment-order';
+      const response = await fetch(functionUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data),
       });
 
-      console.log('Response status:', response.status);
+      console.log('Netlify function response status:', response.status);
       const responseData = await response.json();
-      console.log('Response data:', responseData);
+      console.log('Netlify function response data:', responseData);
 
-      if (!response.ok) {
+      if (!response.ok || !responseData.success) {
         throw new Error(responseData.message || 'Failed to submit comment order');
       }
 
-      return responseData;
+      return {
+        success: true,
+        data: { order_number: responseData.data?.order_number || 'unknown' }
+      };
+
     } catch (error: any) {
-      console.error('API Error:', error);
+      console.error('Comment order error:', error);
       if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-        throw new Error('Network error: Could not connect to the API server. Please check your internet connection.');
+        throw new Error('Netlify function not available. Please deploy to production or check your network connection.');
       }
       throw new Error(error.message || 'Failed to submit comment order');
     }
