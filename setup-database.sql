@@ -47,7 +47,8 @@ CREATE TABLE public.upvote_orders (
     service int NOT NULL,
     speed numeric NOT NULL,
     status text NOT NULL DEFAULT 'pending',
-    external_order_id text
+    external_order_id text,
+    error_message text
 );
 
 -- Enable RLS on upvote_orders

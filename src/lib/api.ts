@@ -33,6 +33,11 @@ export interface ApiResponse<T> {
   data?: T;
 }
 
+export interface OrderSubmissionResult {
+  order_number: string;
+  external_order_number?: string;
+}
+
 export interface OrderStatus {
   order_number: string;
   service: string;
@@ -68,8 +73,9 @@ export const SPEED_OPTIONS = [
 ];
 
 export const api = {
-  async submitUpvoteOrder(data: UpvoteOrderRequest): Promise<ApiResponse<{ order_number: string }>> {
+  async submitUpvoteOrder(data: UpvoteOrderRequest): Promise<ApiResponse<OrderSubmissionResult>> {
     try {
+      // First, store the order locally and deduct balance
       const { data: result, error } = await supabase.rpc('place_upvote_order', {
         order_link: data.link,
         order_quantity: data.quantity,
@@ -85,12 +91,72 @@ export const api = {
         throw new Error(result[0]?.error_message || 'Failed to submit order');
       }
 
-      return {
-        success: true,
-        data: { order_number: result[0].order_id.toString() }
-      };
+      const localOrderId = result[0].order_id.toString();
+
+      // Now submit to BuyUpvotes.io API for actual fulfillment
+      try {
+        const API_KEY = await getApiKeyFromSettings();
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        };
+
+        console.log('Submitting upvote order to BuyUpvotes.io API:', `${API_BASE_URL}/upvote_order/submit/`);
+        console.log('Order data:', data);
+
+        const apiResponse = await fetch(`${API_BASE_URL}/upvote_order/submit/`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(data),
+        });
+
+        console.log('BuyUpvotes.io API Response status:', apiResponse.status);
+        const apiResponseData = await apiResponse.json();
+        console.log('BuyUpvotes.io API Response data:', apiResponseData);
+
+        if (!apiResponse.ok) {
+          throw new Error(apiResponseData.message || 'Failed to submit order to BuyUpvotes.io API');
+        }
+
+        // Update the local order with the external order number
+        if (apiResponseData.data?.order_number) {
+          await supabase
+            .from('upvote_orders')
+            .update({ 
+              external_order_id: apiResponseData.data.order_number,
+              status: 'submitted_to_api'
+            })
+            .eq('id', parseInt(localOrderId));
+        }
+
+        return {
+          success: true,
+          data: { 
+            order_number: localOrderId,
+            external_order_number: apiResponseData.data?.order_number 
+          }
+        };
+
+      } catch (apiError: any) {
+        console.error('BuyUpvotes.io API Error:', apiError);
+        
+        // Mark the local order as failed
+        await supabase
+          .from('upvote_orders')
+          .update({ 
+            status: 'api_submission_failed',
+            error_message: apiError.message 
+          })
+          .eq('id', parseInt(localOrderId));
+
+        // Could optionally refund the user here
+        // For now, we'll let admin handle failed submissions manually
+        
+        throw new Error(`Order stored locally but failed to submit to fulfillment service: ${apiError.message}`);
+      }
+
     } catch (error: any) {
-      console.error('API Error:', error);
+      console.error('Order submission error:', error);
       throw new Error(error.message || 'Failed to submit order');
     }
   },
