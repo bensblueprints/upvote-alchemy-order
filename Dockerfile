@@ -16,11 +16,11 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Install serve globally
-RUN npm install -g serve
+# Copy server file
+COPY server.js ./
 
 # Expose port
 EXPOSE 3000
 
-# Start the application with proper PORT handling
-CMD serve -s dist -p ${PORT:-3000} 
+# Start the application using Node.js server
+CMD ["npm", "start"] 
