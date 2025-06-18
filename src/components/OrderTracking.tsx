@@ -611,36 +611,35 @@ export const OrderTracking = () => {
                               <TableCell>
                                 <div className="flex flex-col space-y-1">
                                   <div className="flex space-x-1">
-                                    {/* Always show refresh button, but handle different states */}
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleIndividualStatusUpdate(order.id)}
-                                      disabled={
-                                        updateStatusMutation.isPending || 
-                                        (individualCooldowns[order.id] || 0) > 0 ||
-                                        ['Completed', 'Cancelled'].includes(order.status)
-                                      }
-                                      className="p-2"
-                                      title={
-                                        !order.external_order_id 
-                                          ? "Get tracking ID" 
-                                          : ['Completed', 'Cancelled'].includes(order.status) 
-                                            ? "Order completed" 
+                                    {/* Refresh button - Don't show for completed/cancelled orders */}
+                                    {!['Completed', 'Cancelled'].includes(order.status) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleIndividualStatusUpdate(order.id)}
+                                        disabled={
+                                          updateStatusMutation.isPending || 
+                                          (individualCooldowns[order.id] || 0) > 0
+                                        }
+                                        className="p-2"
+                                        title={
+                                          !order.external_order_id 
+                                            ? "Get tracking ID" 
                                             : "Refresh Status"
-                                      }
-                                    >
-                                      {updateStatusMutation.isPending ? (
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                      ) : (individualCooldowns[order.id] || 0) > 0 ? (
-                                        <Timer className="h-3 w-3" />
-                                      ) : (
-                                        <RefreshCw className="h-3 w-3" />
-                                      )}
-                                    </Button>
+                                        }
+                                      >
+                                        {updateStatusMutation.isPending ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                          <Timer className="h-3 w-3" />
+                                        ) : (
+                                          <RefreshCw className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    )}
                                     
-                                    {/* Cancel Button - Show for orders that can be cancelled */}
-                                    {order.external_order_id && ['In progress', 'submitted_to_api', 'pending'].includes(order.status.toLowerCase()) && (
+                                    {/* Cancel Button - Only show for "In progress" status orders */}
+                                    {order.external_order_id && order.status === 'In progress' && (
                                       <Button
                                         size="sm"
                                         variant="outline"
@@ -655,30 +654,6 @@ export const OrderTracking = () => {
                                           <Trash2 className="h-3 w-3" />
                                         )}
                                       </Button>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Status message */}
-                                  <div className="text-xs">
-                                    {!order.external_order_id ? (
-                                      <div className="text-orange-600 font-medium">
-                                        ⏳ Processing order...
-                                        <div className="text-gray-500 mt-1">
-                                          Getting tracking ID from BuyUpvotes.io
-                                        </div>
-                                      </div>
-                                    ) : (individualCooldowns[order.id] || 0) > 0 ? (
-                                      <span className="text-blue-600">
-                                        🕒 Available in {formatCooldownTime(individualCooldowns[order.id])}
-                                      </span>
-                                    ) : ['Completed', 'Cancelled'].includes(order.status) ? (
-                                      <span className="text-gray-500">
-                                        ✅ {order.status}
-                                      </span>
-                                    ) : (
-                                      <span className="text-green-600 font-medium">
-                                        🔄 Ready to update
-                                      </span>
                                     )}
                                   </div>
                                 </div>
