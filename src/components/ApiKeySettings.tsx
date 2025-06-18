@@ -33,20 +33,20 @@ export const ApiKeySettings: React.FC = () => {
         <CardTitle>BuyUpvotes API Key</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Input
-              type={show ? 'text' : 'password'}
-              value={apiKey}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Input
+                type={show ? 'text' : 'password'}
+                value={apiKey}
               readOnly
               className="w-full font-mono"
-            />
-            <Button type="button" variant="outline" onClick={() => setShow(s => !s)}>
+              />
+              <Button type="button" variant="outline" onClick={() => setShow(s => !s)}>
               {show ? 'Hide' : 'Show'}
             </Button>
             <Button type="button" variant="outline" onClick={handleCopy}>
               Copy
-            </Button>
+              </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             This API key is configured via environment variables. To change it, update your .env.local file.

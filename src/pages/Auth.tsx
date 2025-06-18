@@ -151,7 +151,7 @@ const Auth = () => {
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</Button>
+                            <Button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</Button>
                         </DialogFooter>
                       </form>
                     </DialogContent>

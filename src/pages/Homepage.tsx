@@ -14,7 +14,7 @@ export default function Homepage() {
         </CardHeader>
         <CardContent>
           <Link to="/auth">
-            <Button size="lg" className="mt-4">Get Started</Button>
+          <Button size="lg" className="mt-4">Get Started</Button>
           </Link>
         </CardContent>
       </Card>
@@ -118,7 +118,7 @@ export default function Homepage() {
       {/* Final CTA */}
       <div className="text-center mt-12">
         <Link to="/auth">
-          <Button size="lg">Ready to Grow? Join Now</Button>
+        <Button size="lg">Ready to Grow? Join Now</Button>
         </Link>
       </div>
     </div>

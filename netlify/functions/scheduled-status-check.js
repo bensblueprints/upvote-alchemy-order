@@ -1,13 +1,23 @@
 const { createClient } = require('@supabase/supabase-js');
 
 exports.handler = async (event, context) => {
-  // This function runs on a schedule to check order statuses
-  // Configure in netlify.toml: 
-  // [[functions]]
-  // name = "scheduled-status-check"
-  // schedule = "0 */4 * * *"  # Every 4 hours
+  // Netlify Scheduled Function - runs automatically every 4 hours
+  // Configured in netlify.toml with schedule = "0 */4 * * *"
   
   try {
+    // For scheduled functions, the request body contains next_run timestamp
+    let next_run = null;
+    try {
+      const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+      next_run = body?.next_run;
+      if (next_run) {
+        console.log('Scheduled function triggered. Next run at:', next_run);
+      }
+    } catch (e) {
+      // Handle cases where event.body might not be JSON (manual invocation)
+      console.log('Function triggered manually or without next_run data');
+    }
+
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Service role key for admin access
     const buyUpvotesApiKey = process.env.VITE_BUYUPVOTES_API_KEY;

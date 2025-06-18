@@ -162,8 +162,8 @@ export const api = {
           }
 
           // Return success with a note about manual processing
-          return {
-            success: true,
+      return {
+        success: true,
             data: { 
               order_number: localOrderId,
               note: 'Order stored locally - deploy to Netlify for automatic processing'

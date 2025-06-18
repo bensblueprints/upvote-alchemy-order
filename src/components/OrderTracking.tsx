@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, Clock } from 'lucide-react';
+import { Search, RefreshCw, Clock, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,10 +22,72 @@ export const OrderTracking = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<UpvoteOrder | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [lastBulkRefresh, setLastBulkRefresh] = useState<number | null>(null);
+  const [refreshCooldown, setRefreshCooldown] = useState(0);
+  const [individualCooldowns, setIndividualCooldowns] = useState<Record<number, number>>({});
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   usePageTitle('Order Tracking');
+
+  // Rate limiting configuration
+  const REFRESH_COOLDOWN_SECONDS = 120; // 2 minutes cooldown for bulk updates
+  const INDIVIDUAL_COOLDOWN_SECONDS = 30; // 30 seconds cooldown for individual updates
+
+  // Update cooldown timer every second
+  useEffect(() => {
+    if (!lastBulkRefresh) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastRefresh = Math.floor((now - lastBulkRefresh) / 1000);
+      const remainingCooldown = Math.max(0, REFRESH_COOLDOWN_SECONDS - timeSinceLastRefresh);
+      
+      setRefreshCooldown(remainingCooldown);
+      
+      if (remainingCooldown === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lastBulkRefresh, REFRESH_COOLDOWN_SECONDS]);
+
+  // Update individual cooldown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndividualCooldowns(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        Object.keys(updated).forEach(orderIdStr => {
+          const orderId = parseInt(orderIdStr);
+          if (updated[orderId] > 0) {
+            updated[orderId] = Math.max(0, updated[orderId] - 1);
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initialize cooldown on component mount
+  useEffect(() => {
+    const storedLastRefresh = localStorage.getItem('lastBulkRefresh');
+    if (storedLastRefresh) {
+      const lastRefreshTime = parseInt(storedLastRefresh);
+      setLastBulkRefresh(lastRefreshTime);
+      
+      const now = Date.now();
+      const timeSinceLastRefresh = Math.floor((now - lastRefreshTime) / 1000);
+      const remainingCooldown = Math.max(0, REFRESH_COOLDOWN_SECONDS - timeSinceLastRefresh);
+      setRefreshCooldown(remainingCooldown);
+    }
+  }, [REFRESH_COOLDOWN_SECONDS]);
 
   const fetchOrders = async () => {
     if (!user) return [];
@@ -105,6 +167,15 @@ export const OrderTracking = () => {
     return SERVICE_OPTIONS.find(opt => opt.value === serviceId)?.label || 'Unknown Service';
   };
 
+  const formatCooldownTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${remainingSeconds}s`;
+  };
+
   // Mutation for updating order status
   const updateStatusMutation = useMutation({
     mutationFn: async (orderId: number) => {
@@ -171,6 +242,16 @@ export const OrderTracking = () => {
   const handleBulkStatusUpdate = () => {
     if (!pastOrders || pastOrders.length === 0) return;
     
+    // Check rate limiting
+    if (refreshCooldown > 0) {
+      toast({
+        title: 'Please Wait',
+        description: `Bulk refresh available in ${formatCooldownTime(refreshCooldown)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Only update orders that have external_order_id and aren't completed/cancelled
     const updatableOrders = pastOrders
       .filter(order => order.external_order_id && !['Completed', 'Cancelled'].includes(order.status))
@@ -184,7 +265,34 @@ export const OrderTracking = () => {
       return;
     }
 
+    // Set rate limiting
+    const now = Date.now();
+    setLastBulkRefresh(now);
+    setRefreshCooldown(REFRESH_COOLDOWN_SECONDS);
+    localStorage.setItem('lastBulkRefresh', now.toString());
+
     bulkUpdateMutation.mutate(updatableOrders);
+  };
+
+  const handleIndividualStatusUpdate = (orderId: number) => {
+    // Check individual rate limiting
+    const cooldown = individualCooldowns[orderId] || 0;
+    if (cooldown > 0) {
+      toast({
+        title: 'Please Wait',
+        description: `Status update available in ${formatCooldownTime(cooldown)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Set individual rate limiting
+    setIndividualCooldowns(prev => ({
+      ...prev,
+      [orderId]: INDIVIDUAL_COOLDOWN_SECONDS
+    }));
+
+    updateStatusMutation.mutate(orderId);
   };
 
   return (
@@ -255,15 +363,25 @@ export const OrderTracking = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => updateStatusMutation.mutate(searchedOrder.id)}
-                      disabled={updateStatusMutation.isPending}
+                      onClick={() => handleIndividualStatusUpdate(searchedOrder.id)}
+                      disabled={
+                        updateStatusMutation.isPending || 
+                        (individualCooldowns[searchedOrder.id] || 0) > 0
+                      }
                     >
                       {updateStatusMutation.isPending ? (
                         <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (individualCooldowns[searchedOrder.id] || 0) > 0 ? (
+                        <>
+                          <Timer className="h-3 w-3 mr-1" />
+                          {formatCooldownTime(individualCooldowns[searchedOrder.id])}
+                        </>
                       ) : (
-                        <RefreshCw className="h-3 w-3" />
+                        <>
+                          <RefreshCw className="h-3 w-3" />
+                          Update Status
+                        </>
                       )}
-                      Update Status
                     </Button>
                   </div>
                 )}
@@ -277,17 +395,25 @@ export const OrderTracking = () => {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Your Past Upvote Orders</CardTitle>
-            <CardDescription>A list of all your upvote orders.</CardDescription>
+            <CardDescription>
+              A list of all your upvote orders. Status updates are rate-limited to prevent API abuse: 
+              individual updates every 30 seconds, bulk updates every 2 minutes.
+            </CardDescription>
           </div>
           <Button
             onClick={handleBulkStatusUpdate}
-            disabled={bulkUpdateMutation.isPending || !pastOrders || pastOrders.length === 0}
+            disabled={bulkUpdateMutation.isPending || !pastOrders || pastOrders.length === 0 || refreshCooldown > 0}
             variant="outline"
           >
             {bulkUpdateMutation.isPending ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Updating...
+              </>
+            ) : refreshCooldown > 0 ? (
+              <>
+                <Timer className="h-4 w-4 mr-2" />
+                Available in {formatCooldownTime(refreshCooldown)}
               </>
             ) : (
               <>
@@ -349,11 +475,19 @@ export const OrderTracking = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => updateStatusMutation.mutate(order.id)}
-                                    disabled={updateStatusMutation.isPending}
+                                    onClick={() => handleIndividualStatusUpdate(order.id)}
+                                    disabled={
+                                      updateStatusMutation.isPending || 
+                                      (individualCooldowns[order.id] || 0) > 0
+                                    }
                                   >
                                     {updateStatusMutation.isPending ? (
                                       <RefreshCw className="h-3 w-3 animate-spin" />
+                                    ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                      <>
+                                        <Timer className="h-3 w-3" />
+                                        <span className="text-xs ml-1">{formatCooldownTime(individualCooldowns[order.id])}</span>
+                                      </>
                                     ) : (
                                       <RefreshCw className="h-3 w-3" />
                                     )}
