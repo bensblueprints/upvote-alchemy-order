@@ -7,7 +7,6 @@ type Profile = Tables<'profiles'>;
 
 const fetchProfile = async (userId: string | undefined) => {
   if (!userId) return null;
-  console.log('Fetching profile for user:', userId);
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -15,10 +14,8 @@ const fetchProfile = async (userId: string | undefined) => {
     .single();
 
   if (error) {
-    console.error('Error fetching profile:', error);
     return null;
   }
-  console.log('Profile fetched successfully:', data);
   return data;
 };
 
