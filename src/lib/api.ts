@@ -405,8 +405,10 @@ export const api = {
     }
   },
 
-  async updateOrderStatus(orderId: number): Promise<{ updated: boolean; status?: string; votes_delivered?: number }> {
+  async updateOrderStatus(orderId: number): Promise<{ updated: boolean; status?: string; votes_delivered?: number; message?: string }> {
     try {
+      console.log(`🔄 Updating status for order ${orderId}...`);
+      
       // First get the order details from our database
       const { data: order, error: orderError } = await supabase
         .from('upvote_orders')
@@ -415,44 +417,40 @@ export const api = {
         .single();
 
       if (orderError || !order) {
-        console.error('Failed to fetch order:', orderError);
-        return { updated: false };
+        console.error('❌ Failed to fetch order:', orderError);
+        return { updated: false, message: `Failed to fetch order data` };
       }
 
-      // Skip already completed/cancelled orders
-      if (['Completed', 'Cancelled'].includes(order.status)) {
-        return { updated: false };
-      }
+      console.log(`📋 Order ${orderId} current status: "${order.status}", external_order_id: "${order.external_order_id}"`);
 
       // Only update orders that have external_order_id - NO AUTO-RESUBMISSION
       if (!order.external_order_id) {
-        console.log(`Order ${orderId} has no external_order_id - skipping status update`);
-        return { updated: false };
+        console.log(`⏳ Order ${orderId} has no external_order_id - skipping status update`);
+        return { updated: false, message: `Order has no tracking ID yet` };
       }
 
-      // Smart rate limiting: don't check more than once every 2 hours for completed orders,
-      // or once every 30 minutes for pending/in-progress orders
+      // Minimal rate limiting: only prevent spam (30 seconds)
       if (order.last_status_check) {
         const lastCheck = new Date(order.last_status_check);
         const now = new Date();
-        const minutesSinceLastCheck = (now.getTime() - lastCheck.getTime()) / (1000 * 60);
+        const secondsSinceLastCheck = (now.getTime() - lastCheck.getTime()) / 1000;
         
-        const isCompleted = ['Completed', 'Cancelled'].includes(order.status);
-        const rateLimit = isCompleted ? 120 : 30; // 2 hours for completed, 30 minutes for pending
-        
-        if (minutesSinceLastCheck < rateLimit) {
-          console.log(`Rate limited: Only ${minutesSinceLastCheck.toFixed(1)} minutes since last check (need ${rateLimit})`);
-          return { updated: false };
+        if (secondsSinceLastCheck < 30) {
+          console.log(`⏰ Rate limited: Only ${secondsSinceLastCheck.toFixed(1)} seconds since last check`);
+          return { updated: false, message: `Status checked ${secondsSinceLastCheck.toFixed(0)}s ago` };
         }
       }
 
-      console.log(`Checking status for order ${orderId} with external ID: ${order.external_order_id}`);
+      console.log(`🌐 Checking API status for order ${orderId} with external ID: ${order.external_order_id}`);
 
       // Check status from BuyUpvotes.io API
       const statusResult = await this.getUpvoteOrderStatus({ order_number: order.external_order_id });
       
+      console.log(`📡 API Response:`, statusResult);
+      
       if (statusResult.success && statusResult.data) {
         const apiStatus = statusResult.data;
+        console.log(`📊 API returned status: "${apiStatus.status}", votes: ${apiStatus.votes_delivered}/${apiStatus.vote_quantity}`);
         
         // Update our database with the latest status
         const { error: updateError } = await supabase
@@ -465,27 +463,32 @@ export const api = {
           .eq('id', orderId);
 
         if (updateError) {
-          console.error('Failed to update order status in database:', updateError);
-          return { updated: false };
+          console.error('❌ Failed to update order status in database:', updateError);
+          return { updated: false, message: `Database update failed: ${updateError.message}` };
         }
 
+        console.log(`✅ Order ${orderId} updated successfully: ${order.status} → ${apiStatus.status}`);
         return {
           updated: true,
           status: apiStatus.status,
-          votes_delivered: apiStatus.votes_delivered || 0
+          votes_delivered: apiStatus.votes_delivered || 0,
+          message: `Status updated to ${apiStatus.status}`
         };
+      } else {
+        console.log(`❌ API call failed or returned no data:`, statusResult);
+        return { updated: false, message: `API error: ${statusResult.message || 'No data returned'}` };
       }
 
-      return { updated: false };
     } catch (error: any) {
-      console.error('Failed to update order status:', error);
+      console.error('❌ Failed to update order status:', error);
+      
       // Update last_status_check even if failed to prevent too frequent retries
       await supabase
         .from('upvote_orders')
         .update({ last_status_check: new Date().toISOString() })
         .eq('id', orderId);
       
-      return { updated: false };
+      return { updated: false, message: `Error: ${error.message}` };
     }
   },
 

@@ -380,17 +380,31 @@ export const OrderTracking = () => {
       [orderId]: INDIVIDUAL_COOLDOWN_SECONDS
     }));
 
-    // If order has no external_order_id, show a helpful message
-    if (!order.external_order_id) {
+    // Call the API directly with better error handling
+    try {
+      const result = await api.updateOrderStatus(orderId);
+      
+      if (result.updated) {
+        toast({
+          title: 'Status Updated',
+          description: result.message || `Order status refreshed successfully`,
+        });
+        // Refresh the orders list
+        queryClient.invalidateQueries({ queryKey: ['upvoteOrders', user?.id] });
+      } else {
+        toast({
+          title: 'Status Check Info',
+          description: result.message || 'Order status is already up to date or cannot be checked yet.',
+          variant: 'default',
+        });
+      }
+    } catch (error: any) {
       toast({
-        title: 'No Tracking ID Available',
-        description: 'This order hasn\'t been assigned a tracking ID yet. This usually means the order is still being processed by our system. Please try again in a few minutes.',
+        title: 'Status Update Failed',
+        description: error.message || 'Failed to update order status',
         variant: 'destructive',
       });
-      return;
     }
-
-    updateStatusMutation.mutate(orderId);
   };
 
   return (
@@ -544,8 +558,7 @@ export const OrderTracking = () => {
                         const serviceInfo = getServiceDisplayInfo(order.service);
                         const votesDelivered = (order as any).votes_delivered || 0;
                         
-                        // Debug: Log order status
-                        console.log(`Order #${order.id} status:`, order.status, 'Votes delivered:', votesDelivered);
+
                         
                         return (
                           <TableRow key={order.id}>
