@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,8 +16,13 @@ import { format } from 'date-fns';
 import { Tables } from '@/integrations/supabase/types';
 
 type UpvoteOrder = Tables<'upvote_orders'>;
+type CommentOrder = Tables<'comment_orders'>;
 
-export const OrderTracking = () => {
+interface OrderTrackingProps {
+  orderType?: 'upvotes' | 'comments';
+}
+
+export const OrderTracking = ({ orderType = 'upvotes' }: OrderTrackingProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<UpvoteOrder | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -506,7 +510,7 @@ export const OrderTracking = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Your Past Upvote Orders</CardTitle>
+          <CardTitle>Your Past Upvote Orders</CardTitle>
             <CardDescription>
               A list of all your upvote orders. New orders need a few minutes to get tracking IDs. 
               Once orders have tracking IDs, you can refresh their status (rate-limited: individual updates 

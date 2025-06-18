@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, ExternalLink, Trash2, Plus, Minus, AlertTriangle } from 'lucide-react';
+import { RefreshCw, ExternalLink, Trash2, Plus, Minus, AlertTriangle, Check, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuth } from '@/contexts/AuthContext';
@@ -145,7 +145,7 @@ export const OrderComments = () => {
       case 'in progress':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'pending':
-      case 'submitted_to_api':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'cancelled':
       case 'failed':
@@ -557,6 +557,266 @@ export const OrderComments = () => {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+};
+
+// Comment Order Tracking Component
+export const CommentOrderTracking = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [refreshCooldowns, setRefreshCooldowns] = useState<Record<number, number>>({});
+  
+  usePageTitle('Track Comment Orders');
+
+  // Update cooldown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshCooldowns(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        Object.keys(updated).forEach(orderIdStr => {
+          const orderId = parseInt(orderIdStr);
+          if (updated[orderId] > 0) {
+            updated[orderId] = Math.max(0, updated[orderId] - 1);
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const { data: commentOrders, isLoading } = useQuery<CommentOrder[]>({
+    queryKey: ['commentOrders', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('comment_orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return <Badge className="bg-green-100 text-green-800">✅ Completed</Badge>;
+      case 'in progress':
+        return <Badge className="bg-orange-100 text-orange-800">In Progress</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'cancelled':
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+    }
+  };
+
+  const parseRedditUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      
+      if (pathParts.length >= 4 && pathParts[0] === 'r' && pathParts[2] === 'comments') {
+        const subreddit = pathParts[1];
+        return {
+          subreddit: `r/${subreddit}`,
+          url
+        };
+      }
+    } catch (error) {
+      console.error('Error parsing Reddit URL:', error);
+    }
+    
+    return {
+      subreddit: 'Unknown',
+      url
+    };
+  };
+
+  const formatCooldownTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${remainingSeconds}s`;
+  };
+
+  const handleRefreshStatus = async (orderId: number) => {
+    const cooldown = refreshCooldowns[orderId] || 0;
+    if (cooldown > 0) {
+      toast({
+        title: 'Please Wait',
+        description: `Status update available in ${formatCooldownTime(cooldown)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Set cooldown
+    setRefreshCooldowns(prev => ({ ...prev, [orderId]: 30 }));
+
+    try {
+      const result = await api.updateCommentOrderStatus(orderId);
+      
+      if (result.updated) {
+        toast({
+          title: 'Status Updated',
+          description: result.message || 'Comment order status refreshed successfully',
+        });
+        queryClient.invalidateQueries({ queryKey: ['commentOrders', user?.id] });
+      } else {
+        toast({
+          title: 'Status Check Info',
+          description: result.message || 'Comment order status is already up to date',
+          variant: 'default',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Status Update Failed',
+        description: error.message || 'Failed to update comment order status',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Track Comment Orders</h1>
+          <p className="text-gray-600 mt-2">Monitor your comment order status and progress</p>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <p>Loading comment orders...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Track Comment Orders</h1>
+        <p className="text-gray-600 mt-2">Monitor your comment order status and progress</p>
+      </div>
+
+      {commentOrders && commentOrders.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Comment Orders</CardTitle>
+            <CardDescription>
+              Track the status and progress of your comment orders
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>SubReddit</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Content Preview</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commentOrders.map((order) => {
+                    const { subreddit, url } = parseRedditUrl(order.link);
+                    const cooldown = refreshCooldowns[order.id] || 0;
+                    const isCompleted = order.status?.toLowerCase() === 'completed';
+                    
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-mono">#{order.id}</TableCell>
+                        <TableCell>{format(new Date(order.created_at), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {subreddit}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => window.open(url, '_blank')}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(order.status || 'Pending')}</TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate text-sm text-gray-600">
+                            {order.content?.substring(0, 50)}{order.content && order.content.length > 50 ? '...' : ''}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isCompleted ? (
+                              <div className="flex items-center text-green-600">
+                                <Check className="h-4 w-4" />
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRefreshStatus(order.id)}
+                                disabled={cooldown > 0}
+                                className="text-xs"
+                              >
+                                {cooldown > 0 ? (
+                                  <>
+                                    <Timer className="h-3 w-3 mr-1" />
+                                    {formatCooldownTime(cooldown)}
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                    Refresh
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-gray-500">No comment orders found. Create your first comment order to get started!</p>
+            <Button 
+              className="mt-4" 
+              onClick={() => {/* Navigate to order comments */}}
+            >
+              Order Comments
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

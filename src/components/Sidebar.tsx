@@ -41,7 +41,8 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: 'buy-accounts', label: 'Buy Accounts', icon: ShoppingBag },
     { id: 'my-purchases', label: 'My Purchases', icon: KeyRound },
     { id: 'order-comments', label: 'Order Comments', icon: MessageSquare },
-    { id: 'order-tracking', label: 'Order Tracking', icon: ClipboardList },
+    { id: 'track-upvote-orders', label: 'Track Upvote Orders', icon: ClipboardList },
+    { id: 'track-comment-orders', label: 'Track Comment Orders', icon: ClipboardList },
     { id: 'add-funds', label: 'Add Funds', icon: Plus },
     { id: 'account', label: 'Account', icon: User },
   ];

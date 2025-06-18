@@ -33,7 +33,7 @@ exports.handler = async (event, context) => {
       .from('upvote_orders')
       .select('id, external_order_id, status, last_status_check, created_at')
       .not('external_order_id', 'is', null)
-      .in('status', ['submitted_to_api', 'In progress', 'Pending'])
+      .in('status', ['In progress', 'Pending'])
       .order('created_at', { ascending: false })
       .limit(100); // Limit to prevent overwhelming the API
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
 import { OrderUpvotes } from '@/components/OrderUpvotes';
-import { OrderComments } from '@/components/OrderComments';
+import { OrderComments, CommentOrderTracking } from '@/components/OrderComments';
 import { OrderTracking } from '@/components/OrderTracking';
 import { AddFunds } from '@/components/AddFunds';
 import { Account } from '@/components/Account';
@@ -67,6 +67,10 @@ const Index = () => {
         return <OrderUpvotes />;
       case 'order-comments':
         return <OrderComments />;
+      case 'track-upvote-orders':
+        return <OrderTracking />;
+      case 'track-comment-orders':
+        return <CommentOrderTracking />;
       case 'order-tracking':
         return <OrderTracking />;
       case 'add-funds':

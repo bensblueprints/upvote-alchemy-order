@@ -125,7 +125,7 @@ export const api = {
               .from('upvote_orders')
               .update({ 
                 external_order_id: apiResponseData.data.order_number,
-                status: 'submitted_to_api'
+                status: 'Pending'
               })
               .eq('id', parseInt(localOrderId));
 
@@ -579,7 +579,7 @@ export const api = {
                   .from('comment_orders')
                   .update({ 
                     external_order_id: apiResponse.data.order_number,
-                    status: 'submitted_to_api'
+                    status: 'Pending'
                   })
                   .eq('id', result.order_id);
 
