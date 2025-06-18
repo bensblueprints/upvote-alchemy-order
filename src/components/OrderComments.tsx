@@ -1,46 +1,213 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RefreshCw, ExternalLink, Trash2, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/lib/api';
+import { format } from 'date-fns';
+import { Tables } from '@/integrations/supabase/types';
+
+type CommentOrder = Tables<'comment_orders'>;
+
+interface CommentFormData {
+  link: string;
+  content: string;
+}
 
 export const OrderComments = () => {
-  const [formData, setFormData] = useState({
-    link: '',
-    content: '',
-  });
+  const [numComments, setNumComments] = useState(1);
+  const [commentForms, setCommentForms] = useState<CommentFormData[]>([{ link: '', content: '' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshCooldowns, setRefreshCooldowns] = useState<Record<number, number>>({});
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   usePageTitle('Order Comments');
+
+  // Fetch past comment orders
+  const { data: pastOrders, isLoading: isLoadingPastOrders } = useQuery({
+    queryKey: ['commentOrders', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('comment_orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching comment orders:', error);
+        throw error;
+      }
+
+      return data as CommentOrder[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Update number of comment forms when numComments changes
+  useEffect(() => {
+    const newForms = Array.from({ length: numComments }, (_, i) => 
+      commentForms[i] || { link: '', content: '' }
+    );
+    setCommentForms(newForms);
+  }, [numComments]);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshCooldowns(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        Object.keys(updated).forEach(key => {
+          const orderId = parseInt(key);
+          if (updated[orderId] > 0) {
+            updated[orderId] = Math.max(0, updated[orderId] - 1);
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const updateFormData = (index: number, field: keyof CommentFormData, value: string) => {
+    setCommentForms(prev => 
+      prev.map((form, i) => 
+        i === index ? { ...form, [field]: value } : form
+      )
+    );
+  };
+
+  const removeForm = (index: number) => {
+    if (commentForms.length > 1) {
+      setCommentForms(prev => prev.filter((_, i) => i !== index));
+      setNumComments(prev => prev - 1);
+    }
+  };
+
+  const addForm = () => {
+    if (commentForms.length < 25) {
+      setCommentForms(prev => [...prev, { link: '', content: '' }]);
+      setNumComments(prev => prev + 1);
+    }
+  };
+
+  const parseRedditUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      
+      if (pathParts.length >= 2 && pathParts[0] === 'r') {
+        const subreddit = pathParts[1];
+        const isComment = pathParts.length >= 6 && pathParts[2] === 'comments';
+        
+        return {
+          subreddit: `r/${subreddit}`,
+          type: isComment ? 'Comment' : 'Post',
+          shortUrl: `reddit.com/r/${subreddit}/...`
+        };
+      }
+      
+      return {
+        subreddit: 'Unknown',
+        type: 'Unknown',
+        shortUrl: url.length > 50 ? url.substring(0, 47) + '...' : url
+      };
+    } catch {
+      return {
+        subreddit: 'Invalid URL',
+        type: 'Unknown',
+        shortUrl: url.length > 50 ? url.substring(0, 47) + '...' : url
+      };
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'in progress':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending':
+      case 'submitted_to_api':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'cancelled':
+      case 'failed':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatCooldownTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${remainingSeconds}s`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const response = await api.submitCommentOrder({
-        link: formData.link,
-        content: formData.content,
-      });
-
-      if (response.success && response.data?.order_number) {
+      // Validate all forms
+      const validForms = commentForms.filter(form => form.link.trim() && form.content.trim());
+      
+      if (validForms.length === 0) {
         toast({
-          title: 'Comment Order Submitted!',
-          description: `Order #${response.data.order_number} has been created.`,
+          title: 'Validation Error',
+          description: 'Please fill in at least one comment form with both link and content.',
+          variant: 'destructive',
         });
-        setFormData({ link: '', content: '' });
-      } else {
-        throw new Error(response.message || 'Failed to submit comment order');
+        return;
       }
-    } catch (error) {
+
+      // Submit all valid forms
+      const result = await api.submitCommentOrderBulk(validForms);
+      
+      if (result.successful > 0) {
+        toast({
+          title: 'Comment Orders Submitted!',
+          description: `${result.successful} comment orders submitted successfully${result.failed > 0 ? `, ${result.failed} failed` : ''}`,
+        });
+        
+        // Reset forms
+        setCommentForms([{ link: '', content: '' }]);
+        setNumComments(1);
+        
+        // Refresh orders list
+        queryClient.invalidateQueries({ queryKey: ['commentOrders', user?.id] });
+      } else {
+        toast({
+          title: 'Submission Failed',
+          description: `All ${result.failed} comment orders failed to submit.`,
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
       console.error('Comment order submission error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to submit comment order. Please try again.',
+        description: 'Failed to submit comment orders. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -48,95 +215,348 @@ export const OrderComments = () => {
     }
   };
 
+  const handleRefreshStatus = async (orderId: number) => {
+    const cooldown = refreshCooldowns[orderId] || 0;
+    if (cooldown > 0) {
+      toast({
+        title: 'Please Wait',
+        description: `Status update available in ${formatCooldownTime(cooldown)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Set cooldown
+    setRefreshCooldowns(prev => ({ ...prev, [orderId]: 30 }));
+
+    try {
+      const result = await api.updateCommentOrderStatus(orderId);
+      
+      if (result.updated) {
+        toast({
+          title: 'Status Updated',
+          description: result.message || 'Comment order status refreshed successfully',
+        });
+        // Refresh the orders list
+        queryClient.invalidateQueries({ queryKey: ['commentOrders', user?.id] });
+      } else {
+        toast({
+          title: 'Status Check Info',
+          description: result.message || 'Comment order status is already up to date',
+          variant: 'default',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Status Update Failed',
+        description: error.message || 'Failed to update comment order status',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Order Comments</h1>
-        <p className="text-gray-600 mt-2">Submit custom comment orders for Reddit posts</p>
+        <p className="text-gray-600 mt-2">Submit custom comment orders for Reddit posts and replies</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Submit Comment Order</CardTitle>
-            <CardDescription>
-              Create a custom comment or reply on Reddit posts
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="link">Reddit Link</Label>
-                <Textarea
-                  id="link"
-                  placeholder="https://www.reddit.com/r/example/comments/..."
-                  value={formData.link}
-                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                  className="min-h-[80px]"
-                  required
-                />
-                <p className="text-sm text-gray-500">
-                  Link to the Reddit post or comment where you want to add a comment
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="content">Comment Content</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Enter your comment text here..."
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="min-h-[150px]"
-                  required
-                />
-                <div className="text-sm text-gray-500 space-y-1">
-                  <p>• Use [newline] to create line breaks</p>
-                  <p>• Use [link text](https://yourlink.com) to add links</p>
-                  <p>• Keep content relevant and follow Reddit's community guidelines</p>
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600" disabled={isSubmitting}>
-                {isSubmitting ? 'Submitting...' : 'Submit Comment Order'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Comment Guidelines</CardTitle>
-            <CardDescription>Best practices for effective comments</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-semibold text-green-800 mb-2">✓ Do</h4>
-              <ul className="text-sm text-green-700 space-y-1">
-                <li>• Write natural, engaging comments</li>
-                <li>• Follow subreddit rules</li>
-                <li>• Add value to discussions</li>
-                <li>• Use proper grammar</li>
+      {/* Instructions Card */}
+      <Card className="border-orange-200 bg-orange-50">
+        <CardHeader>
+          <CardTitle className="text-orange-800 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Important Instructions - Please Read Carefully
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-orange-700 space-y-3">
+          <p className="font-medium">
+            This service allows you to generate and automate Reddit comments using our extensive network of Reddit accounts. 
+            Each automated comment costs <strong>$2.50</strong> and is deducted from your balance.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-semibold mb-2">📝 Custom Comments:</h4>
+              <ul className="text-sm space-y-1">
+                <li>• <strong>Minimum quantity:</strong> 1 comment</li>
+                <li>• <strong>Maximum quantity:</strong> 25 comments per order</li>
+                <li>• Use <code>[newline]</code> to create line breaks</li>
+                <li>• Use <code>[link text](https://yourlink.com)</code> to add links</li>
               </ul>
             </div>
             
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-semibold text-red-800 mb-2">✗ Don't</h4>
-              <ul className="text-sm text-red-700 space-y-1">
-                <li>• Post spam or promotional content</li>
-                <li>• Use offensive language</li>
-                <li>• Violate Reddit's terms</li>
-                <li>• Create duplicate comments</li>
+            <div>
+              <h4 className="font-semibold mb-2">⚠️ Important Disclaimers:</h4>
+              <ul className="text-sm space-y-1">
+                <li>• Comments are made with aged but low-karma accounts</li>
+                <li>• Not guaranteed due to Reddit's spam filters</li>
+                <li>• Subreddit karma requirements may block comments</li>
+                <li>• <strong>No refunds</strong> for comments that don't go through</li>
               </ul>
             </div>
+          </div>
+          
+          <div className="p-3 bg-orange-100 rounded-lg border border-orange-300">
+            <p className="text-sm font-medium">
+              💡 <strong>Recommendation:</strong> Test this service with a small order before ordering in bulk to ensure it works for your target subreddits.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-blue-800">Pricing</h4>
-              <p className="text-sm text-blue-600">$2.50 per comment</p>
+      {/* Order Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Submit Comment Orders</CardTitle>
+          <CardDescription>
+            Add up to 25 comment orders at once. Each comment will be submitted as a separate order.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Number of Comments Selector */}
+            <div className="flex items-center gap-4">
+              <Label htmlFor="numComments">Number of Comments:</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNumComments(Math.max(1, numComments - 1))}
+                  disabled={numComments <= 1}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Select value={numComments.toString()} onValueChange={(value) => setNumComments(parseInt(value))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 25 }, (_, i) => i + 1).map(num => (
+                      <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNumComments(Math.min(25, numComments + 1))}
+                  disabled={numComments >= 25}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="text-sm text-gray-500">
+                Total cost: <strong>${(commentForms.filter(f => f.link.trim() && f.content.trim()).length * 2.50).toFixed(2)}</strong>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            {/* Comment Forms */}
+            <div className="space-y-4">
+              {commentForms.map((form, index) => (
+                <Card key={index} className="border-gray-200">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Comment #{index + 1}</CardTitle>
+                      {commentForms.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeForm(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor={`link-${index}`}>Reddit Link</Label>
+                      <Input
+                        id={`link-${index}`}
+                        placeholder="https://www.reddit.com/r/example/comments/..."
+                        value={form.link}
+                        onChange={(e) => updateFormData(index, 'link', e.target.value)}
+                        required
+                      />
+                      <p className="text-sm text-gray-500">
+                        Link to the Reddit post or comment where you want to add a comment
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`content-${index}`}>Comment Content</Label>
+                      <Textarea
+                        id={`content-${index}`}
+                        placeholder="Enter your comment text here..."
+                        value={form.content}
+                        onChange={(e) => updateFormData(index, 'content', e.target.value)}
+                        className="min-h-[120px]"
+                        required
+                      />
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>• Use [newline] to create line breaks</p>
+                        <p>• Use [link text](https://yourlink.com) to add links</p>
+                        <p>• Keep content relevant and follow Reddit's community guidelines</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Add/Submit Buttons */}
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addForm}
+                disabled={commentForms.length >= 25}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Another Comment
+              </Button>
+
+              <Button 
+                type="submit" 
+                className="bg-orange-500 hover:bg-orange-600" 
+                disabled={isSubmitting || commentForms.filter(f => f.link.trim() && f.content.trim()).length === 0}
+              >
+                {isSubmitting ? 'Submitting...' : `Submit ${commentForms.filter(f => f.link.trim() && f.content.trim()).length} Comment Orders`}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Order Tracking */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Comment Orders</CardTitle>
+          <CardDescription>
+            Track your submitted comment orders. Orders are processed manually and may take some time to complete.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingPastOrders ? (
+            <p>Loading past orders...</p>
+          ) : pastOrders && pastOrders.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Order ID</TableHead>
+                  <TableHead className="w-[120px]">Date</TableHead>
+                  <TableHead className="w-[200px]">SubReddit & Link</TableHead>
+                  <TableHead className="w-[250px]">Comment Preview</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pastOrders.map((order) => {
+                  const urlInfo = parseRedditUrl(order.link);
+                  const cooldown = refreshCooldowns[order.id] || 0;
+                  
+                  return (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span className="font-bold">#{order.id}</span>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex flex-col text-sm">
+                          <span className="font-medium">{format(new Date(order.created_at), 'MMM dd')}</span>
+                          <span className="text-gray-500">{format(new Date(order.created_at), 'HH:mm')}</span>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-blue-600">{urlInfo.subreddit}</span>
+                          <a 
+                            href={order.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1"
+                          >
+                            View {urlInfo.type} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="text-sm">
+                          <p className="line-clamp-3 text-gray-700">
+                            {order.content.length > 100 
+                              ? order.content.substring(0, 97) + '...' 
+                              : order.content
+                            }
+                          </p>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge className={`${getStatusColor(order.status)} text-xs`}>
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          {/* Refresh Status Button */}
+                          {order.external_order_id && !['Completed'].includes(order.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRefreshStatus(order.id)}
+                              disabled={cooldown > 0}
+                              className="p-2"
+                              title="Refresh Status"
+                            >
+                              {cooldown > 0 ? (
+                                <span className="text-xs">{formatCooldownTime(cooldown)}</span>
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                          
+                          {/* Completed check mark */}
+                          {order.status === 'Completed' && (
+                            <div className="p-2">
+                              <span className="text-green-600 text-sm">✓ Complete</span>
+                            </div>
+                          )}
+                          
+                          {/* No tracking ID available */}
+                          {!order.external_order_id && (
+                            <div className="text-xs text-orange-600 p-2">
+                              Processing...
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No comment orders found. Submit your first comment order above!</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

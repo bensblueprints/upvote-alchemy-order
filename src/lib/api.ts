@@ -538,4 +538,155 @@ export const api = {
       throw error;
     }
   },
+
+  // Comment order functions
+  async submitCommentOrderBulk(orders: { link: string; content: string }[]): Promise<{ 
+    successful: number; 
+    failed: number; 
+    results: Array<{ success: boolean; orderId?: number; error?: string }> 
+  }> {
+    const results: Array<{ success: boolean; orderId?: number; error?: string }> = [];
+    let successful = 0;
+    let failed = 0;
+
+    for (const order of orders) {
+      try {
+        // Use the existing database function
+        const { data, error } = await supabase.rpc('place_comment_order', {
+          order_link: order.link,
+          order_content: order.content
+        });
+
+        if (error) {
+          results.push({ success: false, error: error.message });
+          failed++;
+        } else if (data && data.length > 0) {
+          const result = data[0];
+          if (result.error_message) {
+            results.push({ success: false, error: result.error_message });
+            failed++;
+          } else {
+            // Submit to external API
+            try {
+              const apiResponse = await this.submitCommentOrder({ 
+                link: order.link, 
+                content: order.content 
+              });
+
+              if (apiResponse.success && apiResponse.data?.order_number) {
+                // Update the local order with external ID
+                await supabase
+                  .from('comment_orders')
+                  .update({ 
+                    external_order_id: apiResponse.data.order_number,
+                    status: 'submitted_to_api'
+                  })
+                  .eq('id', result.order_id);
+
+                results.push({ success: true, orderId: result.order_id });
+                successful++;
+              } else {
+                results.push({ success: false, error: 'External API submission failed' });
+                failed++;
+              }
+            } catch (apiError: any) {
+              console.error('External API error:', apiError);
+              results.push({ success: false, error: apiError.message });
+              failed++;
+            }
+          }
+        }
+      } catch (error: any) {
+        results.push({ success: false, error: error.message });
+        failed++;
+      }
+    }
+
+    return { successful, failed, results };
+  },
+
+  async updateCommentOrderStatus(orderId: number): Promise<{ updated: boolean; status?: string; message?: string }> {
+    try {
+      console.log(`🔄 Updating comment order status for order ${orderId}...`);
+      
+      // First get the order details from our database
+      const { data: order, error: orderError } = await supabase
+        .from('comment_orders')
+        .select('id, external_order_id, status, last_status_check')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError || !order) {
+        console.error('❌ Failed to fetch comment order:', orderError);
+        return { updated: false, message: `Failed to fetch order data` };
+      }
+
+      console.log(`📋 Comment order ${orderId} current status: "${order.status}", external_order_id: "${order.external_order_id}"`);
+
+      // Only update orders that have external_order_id
+      if (!order.external_order_id) {
+        console.log(`⏳ Comment order ${orderId} has no external_order_id - skipping status update`);
+        return { updated: false, message: `Order has no tracking ID yet` };
+      }
+
+      // Minimal rate limiting: only prevent spam (30 seconds)
+      if (order.last_status_check) {
+        const lastCheck = new Date(order.last_status_check);
+        const now = new Date();
+        const secondsSinceLastCheck = (now.getTime() - lastCheck.getTime()) / 1000;
+        
+        if (secondsSinceLastCheck < 30) {
+          console.log(`⏰ Rate limited: Only ${secondsSinceLastCheck.toFixed(1)} seconds since last check`);
+          return { updated: false, message: `Status checked ${secondsSinceLastCheck.toFixed(0)}s ago` };
+        }
+      }
+
+      console.log(`🌐 Checking API status for comment order ${orderId} with external ID: ${order.external_order_id}`);
+
+      // Check status from BuyUpvotes.io API
+      const statusResult = await this.getCommentOrderStatus({ order_number: order.external_order_id });
+      
+      console.log(`📡 API Response:`, statusResult);
+      
+      if (statusResult.success && statusResult.data) {
+        const apiStatus = statusResult.data;
+        console.log(`📊 API returned status: "${apiStatus.status}"`);
+        
+        // Update our database with the latest status
+        const { error: updateError } = await supabase
+          .from('comment_orders')
+          .update({
+            status: apiStatus.status,
+            last_status_check: new Date().toISOString()
+          })
+          .eq('id', orderId);
+
+        if (updateError) {
+          console.error('❌ Failed to update comment order status in database:', updateError);
+          return { updated: false, message: `Database update failed: ${updateError.message}` };
+        }
+
+        console.log(`✅ Comment order ${orderId} updated successfully: ${order.status} → ${apiStatus.status}`);
+        return {
+          updated: true,
+          status: apiStatus.status,
+          message: `Status updated to ${apiStatus.status}`
+        };
+      } else {
+        console.log(`❌ API call failed or returned no data:`, statusResult);
+        return { updated: false, message: `API error: ${statusResult.message || 'No data returned'}` };
+      }
+
+    } catch (error: any) {
+      console.error('❌ Failed to update comment order status:', error);
+      
+      // Update last_status_check even if failed to prevent too frequent retries
+      await supabase
+        .from('comment_orders')
+        .update({ last_status_check: new Date().toISOString() })
+        .eq('id', orderId);
+      
+      return { updated: false, message: `Error: ${error.message}` };
+    }
+  },
 };

@@ -50,6 +50,39 @@ export type Database = {
           },
         ]
       }
+      comment_orders: {
+        Row: {
+          id: number
+          created_at: string
+          user_id: string
+          link: string
+          content: string
+          status: string
+          external_order_id: string | null
+          last_status_check: string | null
+        }
+        Insert: {
+          id?: number
+          created_at?: string
+          user_id: string
+          link: string
+          content: string
+          status?: string
+          external_order_id?: string | null
+          last_status_check?: string | null
+        }
+        Update: {
+          id?: number
+          created_at?: string
+          user_id?: string
+          link?: string
+          content?: string
+          status?: string
+          external_order_id?: string | null
+          last_status_check?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           amount_total: number | null
@@ -334,6 +367,16 @@ export type Database = {
           p_details?: Json
         }
         Returns: undefined
+      }
+      place_comment_order: {
+        Args: {
+          order_link: string
+          order_content: string
+        }
+        Returns: {
+          order_id: number
+          error_message: string
+        }[]
       }
       place_upvote_order: {
         Args: {
