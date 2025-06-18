@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, Clock, Timer, Trash2, ExternalLink } from 'lucide-react';
+import { Search, RefreshCw, Clock, Timer, Trash2, ExternalLink, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -544,6 +544,9 @@ export const OrderTracking = () => {
                         const serviceInfo = getServiceDisplayInfo(order.service);
                         const votesDelivered = (order as any).votes_delivered || 0;
                         
+                        // Debug: Log order status
+                        console.log(`Order #${order.id} status:`, order.status, 'Votes delivered:', votesDelivered);
+                        
                         return (
                           <TableRow key={order.id}>
                               <TableCell className="font-medium">
@@ -609,53 +612,60 @@ export const OrderTracking = () => {
                               </TableCell>
                               
                               <TableCell>
-                                <div className="flex flex-col space-y-1">
-                                  <div className="flex space-x-1">
-                                    {/* Refresh button - Don't show for completed/cancelled orders */}
-                                    {!['Completed', 'Cancelled'].includes(order.status) && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleIndividualStatusUpdate(order.id)}
-                                        disabled={
-                                          updateStatusMutation.isPending || 
-                                          (individualCooldowns[order.id] || 0) > 0
-                                        }
-                                        className="p-2"
-                                        title={
-                                          !order.external_order_id 
-                                            ? "Get tracking ID" 
-                                            : "Refresh Status"
-                                        }
-                                      >
-                                        {updateStatusMutation.isPending ? (
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                        ) : (individualCooldowns[order.id] || 0) > 0 ? (
-                                          <Timer className="h-3 w-3" />
-                                        ) : (
-                                          <RefreshCw className="h-3 w-3" />
-                                        )}
-                                      </Button>
-                                    )}
-                                    
-                                    {/* Cancel Button - Only show for "In progress" status orders */}
-                                    {order.external_order_id && order.status === 'In progress' && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleCancelOrder(order.id, order.external_order_id)}
-                                        disabled={cancelOrderMutation.isPending}
-                                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        title="Cancel Order"
-                                      >
-                                        {cancelOrderMutation.isPending ? (
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-3 w-3" />
-                                        )}
-                                      </Button>
-                                    )}
-                                  </div>
+                                <div className="flex space-x-1 justify-center">
+                                  {/* Show green checkmark for completed orders */}
+                                  {order.status === 'Completed' ? (
+                                    <div className="flex items-center justify-center p-2">
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {/* Refresh button - Don't show for completed/cancelled orders */}
+                                      {!['Completed', 'Cancelled'].includes(order.status) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleIndividualStatusUpdate(order.id)}
+                                          disabled={
+                                            updateStatusMutation.isPending || 
+                                            (individualCooldowns[order.id] || 0) > 0
+                                          }
+                                          className="p-2"
+                                          title={
+                                            !order.external_order_id 
+                                              ? "Get tracking ID" 
+                                              : "Refresh Status"
+                                          }
+                                        >
+                                          {updateStatusMutation.isPending ? (
+                                            <RefreshCw className="h-3 w-3 animate-spin" />
+                                          ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                            <Timer className="h-3 w-3" />
+                                          ) : (
+                                            <RefreshCw className="h-3 w-3" />
+                                          )}
+                                        </Button>
+                                      )}
+                                      
+                                      {/* Cancel Button - Only show for "In progress" status orders */}
+                                      {order.external_order_id && order.status === 'In progress' && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleCancelOrder(order.id, order.external_order_id)}
+                                          disabled={cancelOrderMutation.isPending}
+                                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          title="Cancel Order"
+                                        >
+                                          {cancelOrderMutation.isPending ? (
+                                            <RefreshCw className="h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="h-3 w-3" />
+                                          )}
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
                               </TableCell>
                           </TableRow>
