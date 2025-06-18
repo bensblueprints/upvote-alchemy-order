@@ -351,7 +351,7 @@ export const OrderTracking = () => {
     bulkUpdateMutation.mutate(updatableOrders);
   };
 
-  const handleIndividualStatusUpdate = (orderId: number) => {
+  const handleIndividualStatusUpdate = async (orderId: number) => {
     // Check individual rate limiting
     const cooldown = individualCooldowns[orderId] || 0;
     if (cooldown > 0) {
@@ -363,11 +363,32 @@ export const OrderTracking = () => {
       return;
     }
 
+    // Get the order to check its current state
+    const order = pastOrders?.find(o => o.id === orderId);
+    if (!order) {
+      toast({
+        title: 'Error',
+        description: 'Order not found',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Set individual rate limiting
     setIndividualCooldowns(prev => ({
       ...prev,
       [orderId]: INDIVIDUAL_COOLDOWN_SECONDS
     }));
+
+    // If order has no external_order_id, show a helpful message
+    if (!order.external_order_id) {
+      toast({
+        title: 'No Tracking ID Available',
+        description: 'This order hasn\'t been assigned a tracking ID yet. This usually means the order is still being processed by our system. Please try again in a few minutes.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     updateStatusMutation.mutate(orderId);
   };
@@ -473,9 +494,9 @@ export const OrderTracking = () => {
           <div>
             <CardTitle>Your Past Upvote Orders</CardTitle>
             <CardDescription>
-              A list of all your upvote orders. Status updates are rate-limited to prevent API abuse: 
-              individual updates every 30 seconds, bulk updates every 2 minutes. Only orders with external 
-              tracking IDs can be updated.
+              A list of all your upvote orders. New orders need a few minutes to get tracking IDs. 
+              Once orders have tracking IDs, you can refresh their status (rate-limited: individual updates 
+              every 30 seconds, bulk updates every 2 minutes).
             </CardDescription>
           </div>
           <Button
@@ -590,32 +611,36 @@ export const OrderTracking = () => {
                               <TableCell>
                                 <div className="flex flex-col space-y-1">
                                   <div className="flex space-x-1">
-                                    {/* Refresh Status Button - Show for all orders with external_order_id */}
-                                    {order.external_order_id && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleIndividualStatusUpdate(order.id)}
-                                        disabled={
-                                          updateStatusMutation.isPending || 
-                                          (individualCooldowns[order.id] || 0) > 0 ||
-                                          ['Completed', 'Cancelled'].includes(order.status)
-                                        }
-                                        className="p-2"
-                                        title={['Completed', 'Cancelled'].includes(order.status) ? "Order completed" : "Refresh Status"}
-                                      >
-                                        {updateStatusMutation.isPending ? (
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                        ) : (individualCooldowns[order.id] || 0) > 0 ? (
-                                          <Timer className="h-3 w-3" />
-                                        ) : (
-                                          <RefreshCw className="h-3 w-3" />
-                                        )}
-                                      </Button>
-                                    )}
+                                    {/* Always show refresh button, but handle different states */}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleIndividualStatusUpdate(order.id)}
+                                      disabled={
+                                        updateStatusMutation.isPending || 
+                                        (individualCooldowns[order.id] || 0) > 0 ||
+                                        ['Completed', 'Cancelled'].includes(order.status)
+                                      }
+                                      className="p-2"
+                                      title={
+                                        !order.external_order_id 
+                                          ? "Get tracking ID" 
+                                          : ['Completed', 'Cancelled'].includes(order.status) 
+                                            ? "Order completed" 
+                                            : "Refresh Status"
+                                      }
+                                    >
+                                      {updateStatusMutation.isPending ? (
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                      ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                        <Timer className="h-3 w-3" />
+                                      ) : (
+                                        <RefreshCw className="h-3 w-3" />
+                                      )}
+                                    </Button>
                                     
-                                    {/* Cancel Order Button - Show for In progress orders */}
-                                    {order.external_order_id && order.status === 'In progress' && (
+                                    {/* Cancel Button - Show for orders that can be cancelled */}
+                                    {order.external_order_id && ['In progress', 'submitted_to_api', 'pending'].includes(order.status.toLowerCase()) && (
                                       <Button
                                         size="sm"
                                         variant="outline"
@@ -631,27 +656,29 @@ export const OrderTracking = () => {
                                         )}
                                       </Button>
                                     )}
-                                    
-                                    {/* Debug info - show what's preventing buttons */}
-                                    {!order.external_order_id && (
-                                      <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">
-                                        No tracking ID
-                                      </span>
-                                    )}
                                   </div>
                                   
-                                  {/* Cooldown indicator */}
-                                  {(individualCooldowns[order.id] || 0) > 0 && (
-                                    <div className="text-xs text-gray-500">
-                                      Available in {formatCooldownTime(individualCooldowns[order.id])}
-                                    </div>
-                                  )}
-                                  
-                                  {/* Debug: Show order status and external_order_id */}
-                                  <div className="text-xs text-gray-400">
-                                    Status: {order.status}
-                                    {order.external_order_id && (
-                                      <><br />ID: {order.external_order_id}</>
+                                  {/* Status message */}
+                                  <div className="text-xs">
+                                    {!order.external_order_id ? (
+                                      <div className="text-orange-600 font-medium">
+                                        ⏳ Processing order...
+                                        <div className="text-gray-500 mt-1">
+                                          Getting tracking ID from BuyUpvotes.io
+                                        </div>
+                                      </div>
+                                    ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                      <span className="text-blue-600">
+                                        🕒 Available in {formatCooldownTime(individualCooldowns[order.id])}
+                                      </span>
+                                    ) : ['Completed', 'Cancelled'].includes(order.status) ? (
+                                      <span className="text-gray-500">
+                                        ✅ {order.status}
+                                      </span>
+                                    ) : (
+                                      <span className="text-green-600 font-medium">
+                                        🔄 Ready to update
+                                      </span>
                                     )}
                                   </div>
                                 </div>

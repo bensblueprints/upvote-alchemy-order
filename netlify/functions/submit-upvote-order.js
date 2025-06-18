@@ -43,7 +43,10 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        data: responseData.data,
+        data: {
+          order_number: responseData.order_number,
+          message: responseData.message
+        },
       }),
     };
 
