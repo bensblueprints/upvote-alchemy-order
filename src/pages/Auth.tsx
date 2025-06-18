@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { PasswordStrength } from '@/components/ui/password-strength';
+import { calculatePasswordStrength } from '@/utils/passwordStrength';
 import {
   Dialog,
   DialogContent,
@@ -23,11 +25,24 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check password strength before proceeding
+    const passwordStrength = calculatePasswordStrength(password);
+    if (passwordStrength.score < 60) {
+      toast({ 
+        title: 'Password Too Weak', 
+        description: `Password strength is ${passwordStrength.score}/100. Minimum required is 60.`,
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -61,6 +76,13 @@ const Auth = () => {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate email before proceeding
+    if (!resetEmail || !resetEmail.trim()) {
+      toast({ title: 'Error', description: 'Please enter your email address.', variant: 'destructive' });
+      return;
+    }
+    
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
       redirectTo: `${window.location.origin}/update-password`,
@@ -69,6 +91,8 @@ const Auth = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Success!', description: 'Password reset link sent to your email.' });
+      setResetEmail(''); // Clear the form
+      setResetDialogOpen(false); // Close the dialog
     }
     setLoading(false);
   };
@@ -97,7 +121,7 @@ const Auth = () => {
                   <Input id="password-in" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                 </div>
                 <div className="text-sm">
-                  <Dialog>
+                  <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                     <DialogTrigger asChild>
                       <button type="button" className="font-medium text-orange-600 hover:text-orange-500">
                         Forgot your password?
@@ -127,9 +151,7 @@ const Auth = () => {
                           </div>
                         </div>
                         <DialogFooter>
-                          <DialogClose asChild>
-                            <Button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</Button>
-                          </DialogClose>
+                          <Button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</Button>
                         </DialogFooter>
                       </form>
                     </DialogContent>
@@ -157,8 +179,13 @@ const Auth = () => {
                 <div className="space-y-2">
                   <Label htmlFor="password-up">Password</Label>
                   <Input id="password-up" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <PasswordStrength password={password} />
                 </div>
-                <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600" disabled={loading}>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-orange-500 hover:bg-orange-600" 
+                  disabled={loading || calculatePasswordStrength(password).score < 60}
+                >
                   {loading ? 'Signing Up...' : 'Sign Up'}
                 </Button>
               </form>

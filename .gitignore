@@ -7,9 +7,11 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-CORS_SOLUTION.md
-DEPLOYMENT.md
-*.md
+# Documentation folder (contains instructional guides)
+Docs/
+migrations/
+
+# Database files
 setup-database.sql
 update_upvote_order.sql
 
@@ -28,3 +30,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.md
+*.sql
