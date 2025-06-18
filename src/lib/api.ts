@@ -120,6 +120,7 @@ export const api = {
         // Update the local order with the external order number
         if (apiResponseData.data?.order_number) {
           try {
+            // First, update with external_order_id
             await supabase
               .from('upvote_orders')
               .update({ 
@@ -127,6 +128,28 @@ export const api = {
                 status: 'submitted_to_api'
               })
               .eq('id', parseInt(localOrderId));
+
+            // Immediately check status to get current state
+            try {
+              const statusResult = await this.getUpvoteOrderStatus({ 
+                order_number: apiResponseData.data.order_number 
+              });
+              
+              if (statusResult.success && statusResult.data) {
+                // Update with actual status and votes delivered
+                await supabase
+                  .from('upvote_orders')
+                  .update({
+                    status: statusResult.data.status,
+                    votes_delivered: statusResult.data.votes_delivered || 0,
+                    last_status_check: new Date().toISOString()
+                  })
+                  .eq('id', parseInt(localOrderId));
+              }
+            } catch (statusError) {
+              console.warn('Failed to get initial status, but order was submitted successfully:', statusError);
+              // Don't fail the entire submission if status check fails
+            }
           } catch (updateError) {
             console.warn('Failed to update local order with external ID:', updateError);
             // Continue anyway - the order was submitted successfully
