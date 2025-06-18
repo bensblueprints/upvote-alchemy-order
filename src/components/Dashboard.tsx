@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Tables } from '@/integrations/supabase/types';
 import { SERVICE_OPTIONS } from '@/lib/api';
 import { format } from 'date-fns';
@@ -15,6 +16,7 @@ type UpvoteOrder = Tables<'upvote_orders'>;
 export const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  usePageTitle('Home');
 
   const stats = [
     {

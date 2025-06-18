@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { SPEED_OPTIONS, SERVICE_OPTIONS, api } from '@/lib/api';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ export const OrderUpvotes = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
+  usePageTitle('Order Upvotes');
 
   const pricing = useMemo(() => {
     const balance = profile?.balance ?? 0;

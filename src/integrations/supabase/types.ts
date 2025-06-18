@@ -287,6 +287,9 @@ export type Database = {
           speed: number
           status: string
           user_id: string
+          votes_delivered: number | null
+          last_status_check: string | null
+          error_message: string | null
         }
         Insert: {
           created_at?: string
@@ -298,6 +301,9 @@ export type Database = {
           speed: number
           status?: string
           user_id: string
+          votes_delivered?: number | null
+          last_status_check?: string | null
+          error_message?: string | null
         }
         Update: {
           created_at?: string
@@ -309,6 +315,9 @@ export type Database = {
           speed?: number
           status?: string
           user_id?: string
+          votes_delivered?: number | null
+          last_status_check?: string | null
+          error_message?: string | null
         }
         Relationships: []
       }
@@ -343,6 +352,10 @@ export type Database = {
         Returns: string
       }
       refund_order: {
+        Args: { target_order_id: number }
+        Returns: string
+      }
+      auto_refund_failed_order: {
         Args: { target_order_id: number }
         Returns: string
       }

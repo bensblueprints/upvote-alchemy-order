@@ -28,4 +28,9 @@
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable" 
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Scheduled functions for automated status checking
+[[functions]]
+  name = "scheduled-status-check"
+  schedule = "0 */4 * * *"  # Every 4 hours 

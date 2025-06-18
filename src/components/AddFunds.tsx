@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, Star, CreditCard, Bitcoin } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { supabase } from '@/integrations/supabase/client';
 
 export const AddFunds = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'crypto'>('credit');
   const { toast } = useToast();
+  usePageTitle('Add Funds');
 
   const packages = [
     {

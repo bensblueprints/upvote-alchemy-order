@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { api } from '@/lib/api';
 
 export const OrderComments = () => {
@@ -14,6 +15,7 @@ export const OrderComments = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  usePageTitle('Order Comments');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +27,10 @@ export const OrderComments = () => {
         content: formData.content,
       });
 
-      if (response.order_number) {
+      if (response.success && response.data?.order_number) {
         toast({
           title: 'Comment Order Submitted!',
-          description: `Order #${response.order_number} has been created.`,
+          description: `Order #${response.data.order_number} has been created.`,
         });
         setFormData({ link: '', content: '' });
       } else {

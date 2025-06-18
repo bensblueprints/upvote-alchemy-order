@@ -175,9 +175,9 @@ export const api = {
         try {
           console.log('API submission failed, automatically refunding order...');
           
-          // Call the refund function
+          // Call the automatic refund function (non-admin)
           const { data: refundResult, error: refundError } = await supabase
-            .rpc('refund_order', { target_order_id: parseInt(localOrderId) });
+            .rpc('auto_refund_failed_order', { target_order_id: parseInt(localOrderId) });
           
           if (refundError) {
             console.error('Refund failed:', refundError);
@@ -215,33 +215,34 @@ export const api = {
 
   async getUpvoteOrderStatus(data: OrderStatusRequest): Promise<ApiResponse<OrderStatus>> {
     try {
-      const API_KEY = await getApiKeyFromSettings();
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      };
-      console.log('Getting order status from:', `${API_BASE_URL}/upvote_order/status/`);
-      console.log('Order data:', data);
+      console.log('Getting order status via Netlify function for order:', data.order_number);
 
-      const response = await fetch(`${API_BASE_URL}/upvote_order/status/`, {
+      // Use Netlify function to avoid CORS issues
+      const functionUrl = '/.netlify/functions/check-order-status';
+      const response = await fetch(functionUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data),
       });
 
-      console.log('Response status:', response.status);
+      console.log('Netlify function response status:', response.status);
       const responseData = await response.json();
-      console.log('Response data:', responseData);
+      console.log('Netlify function response data:', responseData);
 
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to get order status');
+      if (!response.ok || !responseData.success) {
+        throw new Error(responseData.message || 'Failed to get order status via serverless function');
       }
 
-      return responseData;
+      return {
+        success: true,
+        data: responseData.data
+      };
     } catch (error: any) {
       console.error('API Error:', error);
       if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-        throw new Error('Network error: Could not connect to the API server. Please check your internet connection.');
+        throw new Error('Netlify function not available (likely local development). Status checking requires deployment.');
       }
       throw new Error(error.message || 'Failed to get order status');
     }
@@ -378,6 +379,131 @@ export const api = {
         success: false,
         error: error.message,
       };
+    }
+  },
+
+  async updateOrderStatus(orderId: number): Promise<{ updated: boolean; status?: string; votes_delivered?: number }> {
+    try {
+      // First get the order details from our database
+      const { data: order, error: orderError } = await supabase
+        .from('upvote_orders')
+        .select('id, external_order_id, status, last_status_check, votes_delivered')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError || !order) {
+        console.error('Failed to fetch order:', orderError);
+        return { updated: false };
+      }
+
+      // Only check status for orders that have external_order_id and aren't already completed/cancelled
+      if (!order.external_order_id || ['Completed', 'Cancelled'].includes(order.status)) {
+        return { updated: false };
+      }
+
+      // Smart rate limiting: don't check more than once every 2 hours for completed orders,
+      // or once every 30 minutes for pending/in-progress orders
+      if (order.last_status_check) {
+        const lastCheck = new Date(order.last_status_check);
+        const now = new Date();
+        const minutesSinceLastCheck = (now.getTime() - lastCheck.getTime()) / (1000 * 60);
+        
+        const isCompleted = ['Completed', 'Cancelled'].includes(order.status);
+        const rateLimit = isCompleted ? 120 : 30; // 2 hours for completed, 30 minutes for pending
+        
+        if (minutesSinceLastCheck < rateLimit) {
+          console.log(`Rate limited: Only ${minutesSinceLastCheck.toFixed(1)} minutes since last check (need ${rateLimit})`);
+          return { updated: false };
+        }
+      }
+
+      console.log(`Checking status for order ${orderId} with external ID: ${order.external_order_id}`);
+
+      // Check status from BuyUpvotes.io API
+      const statusResult = await this.getUpvoteOrderStatus({ order_number: order.external_order_id });
+      
+      if (statusResult.success && statusResult.data) {
+        const apiStatus = statusResult.data;
+        
+        // Update our database with the latest status
+        const { error: updateError } = await supabase
+          .from('upvote_orders')
+          .update({
+            status: apiStatus.status,
+            votes_delivered: apiStatus.votes_delivered || 0,
+            last_status_check: new Date().toISOString()
+          })
+          .eq('id', orderId);
+
+        if (updateError) {
+          console.error('Failed to update order status in database:', updateError);
+          return { updated: false };
+        }
+
+        return {
+          updated: true,
+          status: apiStatus.status,
+          votes_delivered: apiStatus.votes_delivered || 0
+        };
+      }
+
+      return { updated: false };
+    } catch (error: any) {
+      console.error('Failed to update order status:', error);
+      // Update last_status_check even if failed to prevent too frequent retries
+      await supabase
+        .from('upvote_orders')
+        .update({ last_status_check: new Date().toISOString() })
+        .eq('id', orderId);
+      
+      return { updated: false };
+    }
+  },
+
+  // Bulk status update for multiple orders
+  async updateMultipleOrderStatuses(orderIds: number[]): Promise<{ updated: number; failed: number }> {
+    let updated = 0;
+    let failed = 0;
+
+    // Process orders in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < orderIds.length; i += batchSize) {
+      const batch = orderIds.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const results = await Promise.allSettled(
+        batch.map(orderId => this.updateOrderStatus(orderId))
+      );
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.updated) {
+          updated++;
+        } else {
+          failed++;
+        }
+      });
+
+      // Small delay between batches to be respectful to the API
+      if (i + batchSize < orderIds.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    return { updated, failed };
+  },
+
+  // Test function to manually check a specific order status
+  async testOrderStatus(externalOrderId: string): Promise<any> {
+    try {
+      console.log('Testing status check for external order ID:', externalOrderId);
+      
+      const result = await this.getUpvoteOrderStatus({ order_number: externalOrderId });
+      console.log('Status check result:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Status check test failed:', error);
+      throw error;
     }
   },
 };

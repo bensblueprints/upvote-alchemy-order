@@ -7,6 +7,7 @@ import { Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const Account = () => {
@@ -15,6 +16,7 @@ export const Account = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { data: profile, isLoading: isLoadingProfile } = useProfile();
+  usePageTitle('Account');
 
   const copyApiKey = () => {
     navigator.clipboard.writeText(apiKey);

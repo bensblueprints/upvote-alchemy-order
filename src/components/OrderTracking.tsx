@@ -1,17 +1,18 @@
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SERVICE_OPTIONS } from '@/lib/api';
+import { SERVICE_OPTIONS, api } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { format } from 'date-fns';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -23,6 +24,8 @@ export const OrderTracking = () => {
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  usePageTitle('Order Tracking');
 
   const fetchOrders = async () => {
     if (!user) return [];
@@ -102,6 +105,88 @@ export const OrderTracking = () => {
     return SERVICE_OPTIONS.find(opt => opt.value === serviceId)?.label || 'Unknown Service';
   };
 
+  // Mutation for updating order status
+  const updateStatusMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      return await api.updateOrderStatus(orderId);
+    },
+    onSuccess: (result, orderId) => {
+      if (result.updated) {
+        toast({
+          title: 'Status Updated',
+          description: `Order #${orderId} status updated to: ${result.status}`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['upvoteOrders', user?.id] });
+        
+                 // Update searched order if it matches
+         if (searchedOrder && searchedOrder.id === orderId) {
+           supabase
+             .from('upvote_orders')
+             .select('*')
+             .eq('id', orderId)
+             .single()
+             .then(({ data, error }) => {
+               if (data && !error) {
+                 setSearchedOrder(data);
+               }
+             });
+         }
+      } else {
+        toast({
+          title: 'No Update Available',
+          description: `Order #${orderId} status is already up to date or cannot be checked yet.`,
+        });
+      }
+    },
+    onError: (error: any, orderId) => {
+      toast({
+        title: 'Update Failed',
+        description: `Failed to update status for order #${orderId}: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async (orderIds: number[]) => {
+      return await api.updateMultipleOrderStatuses(orderIds);
+    },
+    onSuccess: (result) => {
+      toast({
+        title: 'Bulk Update Complete',
+        description: `Updated ${result.updated} orders, ${result.failed} failed`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['upvoteOrders', user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Bulk Update Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const handleBulkStatusUpdate = () => {
+    if (!pastOrders || pastOrders.length === 0) return;
+    
+    // Only update orders that have external_order_id and aren't completed/cancelled
+    const updatableOrders = pastOrders
+      .filter(order => order.external_order_id && !['Completed', 'Cancelled'].includes(order.status))
+      .map(order => order.id);
+    
+    if (updatableOrders.length === 0) {
+      toast({
+        title: 'No Orders to Update',
+        description: 'All your orders are either completed, cancelled, or don\'t have external tracking IDs.',
+      });
+      return;
+    }
+
+    bulkUpdateMutation.mutate(updatableOrders);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -153,10 +238,35 @@ export const OrderTracking = () => {
                     <span className="text-gray-600">Date:</span>
                     <span className="ml-2 font-medium">{format(new Date(searchedOrder.created_at), 'PPp')}</span>
                 </div>
+                                 {(searchedOrder as any).votes_delivered !== null && (searchedOrder as any).votes_delivered > 0 && (
+                   <div>
+                     <span className="text-gray-600">Delivered:</span>
+                     <span className="ml-2 font-medium">{(searchedOrder as any).votes_delivered} / {searchedOrder.quantity}</span>
+                   </div>
+                 )}
                 <div className="col-span-2">
                     <span className="text-gray-600">Link:</span>
                     <a href={searchedOrder.link} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{searchedOrder.link}</a>
                 </div>
+                {searchedOrder.external_order_id && (
+                  <div className="col-span-2 flex items-center gap-2">
+                    <span className="text-gray-600">External Order ID:</span>
+                    <span className="ml-2 font-mono text-sm">{searchedOrder.external_order_id}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateStatusMutation.mutate(searchedOrder.id)}
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      {updateStatusMutation.isPending ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      Update Status
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -164,9 +274,28 @@ export const OrderTracking = () => {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Your Past Upvote Orders</CardTitle>
-          <CardDescription>A list of all your upvote orders.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Your Past Upvote Orders</CardTitle>
+            <CardDescription>A list of all your upvote orders.</CardDescription>
+          </div>
+          <Button
+            onClick={handleBulkStatusUpdate}
+            disabled={bulkUpdateMutation.isPending || !pastOrders || pastOrders.length === 0}
+            variant="outline"
+          >
+            {bulkUpdateMutation.isPending ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Clock className="h-4 w-4 mr-2" />
+                Update All Statuses
+              </>
+            )}
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoadingPastOrders ? (
@@ -179,8 +308,10 @@ export const OrderTracking = () => {
                           <TableHead>Date</TableHead>
                           <TableHead>Service</TableHead>
                           <TableHead>Quantity</TableHead>
+                          <TableHead>Progress</TableHead>
                           <TableHead>Link</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -191,12 +322,43 @@ export const OrderTracking = () => {
                               <TableCell>{getServiceLabel(order.service)}</TableCell>
                               <TableCell>{order.quantity}</TableCell>
                               <TableCell>
+                                {(order as any).votes_delivered !== null && (order as any).votes_delivered > 0 ? (
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm">{(order as any).votes_delivered} / {order.quantity}</span>
+                                    <div className="w-16 bg-gray-200 rounded-full h-2">
+                                      <div 
+                                        className="bg-blue-600 h-2 rounded-full" 
+                                        style={{ width: `${Math.min(((order as any).votes_delivered / order.quantity) * 100, 100)}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
                                 <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block w-32">{order.link}</a>
                               </TableCell>
                               <TableCell>
                                   <Badge className={getStatusColor(order.status)}>
                                       {order.status}
                                   </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {order.external_order_id && !['Completed', 'Cancelled'].includes(order.status) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateStatusMutation.mutate(order.id)}
+                                    disabled={updateStatusMutation.isPending}
+                                  >
+                                    {updateStatusMutation.isPending ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                )}
                               </TableCell>
                           </TableRow>
                       ))}

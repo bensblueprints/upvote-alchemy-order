@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, ShieldCheck } from 'lucide-react';
+import { MoreHorizontal, ShieldCheck, RefreshCw, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { SERVICE_OPTIONS } from '@/lib/api';
+import { SERVICE_OPTIONS, api } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +79,7 @@ export const AdminDashboard = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [refundOrder, setRefundOrder] = useState<UpvoteOrderWithProfile | null>(null);
+    usePageTitle('Admin');
 
     const { data: orders, isLoading, error } = useQuery<UpvoteOrderWithProfile[]>({
         queryKey: ['allUpvoteOrders'],
@@ -133,6 +135,46 @@ export const AdminDashboard = () => {
         }
     };
 
+    // Bulk status update mutation for admin
+    const bulkUpdateMutation = useMutation({
+        mutationFn: async (orderIds: number[]) => {
+            return await api.updateMultipleOrderStatuses(orderIds);
+        },
+        onSuccess: (result) => {
+            toast({
+                title: 'Bulk Update Complete',
+                description: `Updated ${result.updated} orders, ${result.failed} failed`,
+            });
+            queryClient.invalidateQueries({ queryKey: ['allUpvoteOrders'] });
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Bulk Update Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        }
+    });
+
+    const handleBulkStatusUpdate = () => {
+        if (!orders || orders.length === 0) return;
+        
+        // Only update orders that have external_order_id and aren't completed/cancelled
+        const updatableOrders = orders
+            .filter(order => (order as any).external_order_id && !['Completed', 'Cancelled'].includes(order.status))
+            .map(order => order.id);
+        
+        if (updatableOrders.length === 0) {
+            toast({
+                title: 'No Orders to Update',
+                description: 'All orders are either completed, cancelled, or don\'t have external tracking IDs.',
+            });
+            return;
+        }
+
+        bulkUpdateMutation.mutate(updatableOrders);
+    };
+
 
 
     if (isLoading) return <div className="text-center p-8">Loading all orders...</div>;
@@ -149,9 +191,28 @@ export const AdminDashboard = () => {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>All Upvote Orders</CardTitle>
-                    <CardDescription>View, manage, and update the status of all orders.</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>All Upvote Orders</CardTitle>
+                        <CardDescription>View, manage, and update the status of all orders.</CardDescription>
+                    </div>
+                    <Button
+                        onClick={handleBulkStatusUpdate}
+                        disabled={bulkUpdateMutation.isPending || !orders || orders.length === 0}
+                        variant="outline"
+                    >
+                        {bulkUpdateMutation.isPending ? (
+                            <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Updating...
+                            </>
+                        ) : (
+                            <>
+                                <Clock className="h-4 w-4 mr-2" />
+                                Update All Statuses
+                            </>
+                        )}
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
