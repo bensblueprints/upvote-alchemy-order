@@ -5,11 +5,16 @@
   # Build command
   command = "npm run build"
 
-# SPA routing - redirect all routes to index.html for client-side routing
+# SPA routing - redirect all routes to index.html for client-side routing (except functions)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+
+# Functions configuration
+[functions]
+  directory = "netlify/functions"
 
 # Environment variables for build
 [build.environment]
