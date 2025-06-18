@@ -15,7 +15,6 @@ import { AdminDashboard } from '@/components/AdminDashboard';
 import { BuyRedditAccounts } from '@/components/BuyRedditAccounts';
 import { AdminRedditAccounts } from '@/components/AdminRedditAccounts';
 import { MyPurchasedAccounts } from '@/components/MyPurchasedAccounts';
-import { ApiTest } from '@/components/ApiTest';
 import { ApiKeySettings } from '@/components/ApiKeySettings';
 
 const Index = () => {
@@ -74,8 +73,6 @@ const Index = () => {
         return <AddFunds />;
       case 'account':
         return <Account />;
-      case 'api-test':
-        return <ApiTest />;
       case 'admin-api-key':
         return profile?.is_admin ? <ApiKeySettings /> : <Dashboard />;
       default:

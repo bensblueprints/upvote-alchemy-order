@@ -44,7 +44,6 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     { id: 'order-tracking', label: 'Order Tracking', icon: ClipboardList },
     { id: 'add-funds', label: 'Add Funds', icon: Plus },
     { id: 'account', label: 'Account', icon: User },
-    { id: 'api-test', label: 'API Test', icon: ShieldCheck },
   ];
 
   const menuItems = [...baseMenuItems];
