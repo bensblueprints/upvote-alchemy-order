@@ -26,7 +26,7 @@ exports.handler = async (event, context) => {
 
   try {
     const { order_number } = JSON.parse(event.body);
-    const API_KEY = process.env.VITE_BUYUPVOTES_API_KEY || process.env.BUYUPVOTES_API_KEY;
+    const API_KEY = process.env.VITE_BUYUPVOTES_API_KEY;
 
     if (!API_KEY) {
       throw new Error('API key not configured');

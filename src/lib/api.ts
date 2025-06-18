@@ -396,8 +396,14 @@ export const api = {
         return { updated: false };
       }
 
-      // Only check status for orders that have external_order_id and aren't already completed/cancelled
-      if (!order.external_order_id || ['Completed', 'Cancelled'].includes(order.status)) {
+      // Skip already completed/cancelled orders
+      if (['Completed', 'Cancelled'].includes(order.status)) {
+        return { updated: false };
+      }
+
+      // Only update orders that have external_order_id - NO AUTO-RESUBMISSION
+      if (!order.external_order_id) {
+        console.log(`Order ${orderId} has no external_order_id - skipping status update`);
         return { updated: false };
       }
 

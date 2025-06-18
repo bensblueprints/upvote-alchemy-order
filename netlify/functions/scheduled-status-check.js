@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Service role key for admin access
-    const buyUpvotesApiKey = process.env.VITE_BUYUPVOTES_API_KEY || process.env.BUYUPVOTES_API_KEY;
+    const buyUpvotesApiKey = process.env.VITE_BUYUPVOTES_API_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey || !buyUpvotesApiKey) {
       throw new Error('Missing required environment variables');

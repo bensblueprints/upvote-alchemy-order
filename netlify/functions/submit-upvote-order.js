@@ -1,6 +1,4 @@
 exports.handler = async (event, context) => {
-  console.log('Function called:', { method: event.httpMethod, path: event.path });
-  
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -11,7 +9,7 @@ exports.handler = async (event, context) => {
 
   try {
     const orderData = JSON.parse(event.body);
-    const API_KEY = process.env.VITE_BUYUPVOTES_API_KEY || process.env.BUYUPVOTES_API_KEY;
+    const API_KEY = process.env.VITE_BUYUPVOTES_API_KEY;
 
     if (!API_KEY) {
       throw new Error('API key not configured');

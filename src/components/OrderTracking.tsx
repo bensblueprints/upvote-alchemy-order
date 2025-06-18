@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Search, RefreshCw, Clock, Timer } from 'lucide-react';
+import { Search, RefreshCw, Clock, Timer, Trash2, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -176,6 +176,46 @@ export const OrderTracking = () => {
     return `${remainingSeconds}s`;
   };
 
+  const parseRedditUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      
+      // Reddit URL structure: /r/subreddit/comments/postid/title/ or /r/subreddit/comments/postid/title/commentid
+      if (pathParts.length >= 4 && pathParts[0] === 'r' && pathParts[2] === 'comments') {
+        const subreddit = pathParts[1];
+        const isComment = pathParts.length > 5; // Has comment ID
+        return {
+          subreddit: `r/${subreddit}`,
+          isComment,
+          url
+        };
+      }
+    } catch (error) {
+      console.error('Error parsing Reddit URL:', error);
+    }
+    
+    return {
+      subreddit: 'Unknown',
+      isComment: false,
+      url
+    };
+  };
+
+  const getServiceDisplayInfo = (serviceId: number) => {
+    const service = SERVICE_OPTIONS.find(opt => opt.value === serviceId);
+    const isComment = serviceId === 3 || serviceId === 4; // Comment upvotes or downvotes
+    const isUpvote = serviceId === 1 || serviceId === 3; // Post upvotes or comment upvotes
+    
+    return {
+      label: service?.label || 'Unknown Service',
+      isComment,
+      isUpvote,
+      type: isComment ? 'Comment' : 'Post',
+      direction: isUpvote ? 'Upvotes' : 'Downvotes'
+    };
+  };
+
   // Mutation for updating order status
   const updateStatusMutation = useMutation({
     mutationFn: async (orderId: number) => {
@@ -238,6 +278,43 @@ export const OrderTracking = () => {
       });
     }
   });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async ({ orderId, externalOrderId }: { orderId: number; externalOrderId: string }) => {
+      // Cancel the order on BuyUpvotes.io
+      await api.cancelUpvoteOrder({ order_number: externalOrderId });
+      
+      // Update our local database to mark as cancelled
+      const { error } = await supabase
+        .from('upvote_orders')
+        .update({ status: 'Cancelled' })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      
+      return { orderId, externalOrderId };
+    },
+    onSuccess: (result) => {
+      toast({
+        title: 'Order Cancelled',
+        description: `Order #${result.orderId} has been successfully cancelled.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['upvoteOrders', user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Cancellation Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCancelOrder = (orderId: number, externalOrderId: string) => {
+    if (window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+      cancelOrderMutation.mutate({ orderId, externalOrderId });
+    }
+  };
 
   const handleBulkStatusUpdate = () => {
     if (!pastOrders || pastOrders.length === 0) return;
@@ -397,7 +474,8 @@ export const OrderTracking = () => {
             <CardTitle>Your Past Upvote Orders</CardTitle>
             <CardDescription>
               A list of all your upvote orders. Status updates are rate-limited to prevent API abuse: 
-              individual updates every 30 seconds, bulk updates every 2 minutes.
+              individual updates every 30 seconds, bulk updates every 2 minutes. Only orders with external 
+              tracking IDs can be updated.
             </CardDescription>
           </div>
           <Button
@@ -430,72 +508,157 @@ export const OrderTracking = () => {
               <Table>
                   <TableHeader>
                       <TableRow>
-                          <TableHead>Order ID</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Service</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Progress</TableHead>
-                          <TableHead>Link</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="w-[80px]">Order ID</TableHead>
+                          <TableHead className="w-[120px]">Date</TableHead>
+                          <TableHead className="w-[200px]">SubReddit & Link</TableHead>
+                          <TableHead className="w-[120px]">Service</TableHead>
+                          <TableHead className="w-[100px]">Upvotes Ordered</TableHead>
+                          <TableHead className="w-[120px]">Upvotes Delivered</TableHead>
+                          <TableHead className="w-[120px]">Actions</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {pastOrders.map((order) => (
+                      {pastOrders.map((order) => {
+                        const urlInfo = parseRedditUrl(order.link);
+                        const serviceInfo = getServiceDisplayInfo(order.service);
+                        const votesDelivered = (order as any).votes_delivered || 0;
+                        
+                        return (
                           <TableRow key={order.id}>
-                              <TableCell className="font-medium">#{order.id}</TableCell>
-                              <TableCell>{format(new Date(order.created_at), 'PPp')}</TableCell>
-                              <TableCell>{getServiceLabel(order.service)}</TableCell>
-                              <TableCell>{order.quantity}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span className="font-bold">#{order.id}</span>
+                                  <Badge className={`${getStatusColor(order.status)} w-fit text-xs`}>
+                                    {order.status}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              
+                              <TableCell className="text-sm">
+                                {format(new Date(order.created_at), 'MMM dd')}
+                                <br />
+                                <span className="text-gray-500 text-xs">
+                                  {format(new Date(order.created_at), 'HH:mm')}
+                                </span>
+                              </TableCell>
+                              
                               <TableCell>
-                                {(order as any).votes_delivered !== null && (order as any).votes_delivered > 0 ? (
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm">{(order as any).votes_delivered} / {order.quantity}</span>
-                                    <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div className="flex flex-col space-y-1">
+                                  <span className="font-medium text-blue-600">{urlInfo.subreddit}</span>
+                                  <a 
+                                    href={order.link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center text-xs text-gray-600 hover:text-blue-600 transition-colors"
+                                  >
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    View {serviceInfo.type}
+                                  </a>
+                                </div>
+                              </TableCell>
+                              
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">{serviceInfo.type}</span>
+                                  <span className="text-xs text-gray-500">{serviceInfo.direction}</span>
+                                </div>
+                              </TableCell>
+                              
+                              <TableCell className="text-center">
+                                <span className="font-medium text-lg">{order.quantity}</span>
+                              </TableCell>
+                              
+                              <TableCell>
+                                <div className="flex flex-col items-center space-y-1">
+                                  <span className="font-medium text-lg text-green-600">
+                                    {votesDelivered}
+                                  </span>
+                                  {votesDelivered > 0 && (
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
                                       <div 
-                                        className="bg-blue-600 h-2 rounded-full" 
-                                        style={{ width: `${Math.min(((order as any).votes_delivered / order.quantity) * 100, 100)}%` }}
+                                        className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                                        style={{ width: `${Math.min((votesDelivered / order.quantity) * 100, 100)}%` }}
                                       ></div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">-</span>
-                                )}
+                                  )}
+                                  <span className="text-xs text-gray-500">
+                                    {Math.round((votesDelivered / order.quantity) * 100)}% complete
+                                  </span>
+                                </div>
                               </TableCell>
+                              
                               <TableCell>
-                                <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate block w-32">{order.link}</a>
-                              </TableCell>
-                              <TableCell>
-                                  <Badge className={getStatusColor(order.status)}>
-                                      {order.status}
-                                  </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {order.external_order_id && !['Completed', 'Cancelled'].includes(order.status) && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleIndividualStatusUpdate(order.id)}
-                                    disabled={
-                                      updateStatusMutation.isPending || 
-                                      (individualCooldowns[order.id] || 0) > 0
-                                    }
-                                  >
-                                    {updateStatusMutation.isPending ? (
-                                      <RefreshCw className="h-3 w-3 animate-spin" />
-                                    ) : (individualCooldowns[order.id] || 0) > 0 ? (
-                                      <>
-                                        <Timer className="h-3 w-3" />
-                                        <span className="text-xs ml-1">{formatCooldownTime(individualCooldowns[order.id])}</span>
-                                      </>
-                                    ) : (
-                                      <RefreshCw className="h-3 w-3" />
+                                <div className="flex flex-col space-y-1">
+                                  <div className="flex space-x-1">
+                                    {/* Refresh Status Button - Show for all orders with external_order_id */}
+                                    {order.external_order_id && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleIndividualStatusUpdate(order.id)}
+                                        disabled={
+                                          updateStatusMutation.isPending || 
+                                          (individualCooldowns[order.id] || 0) > 0 ||
+                                          ['Completed', 'Cancelled'].includes(order.status)
+                                        }
+                                        className="p-2"
+                                        title={['Completed', 'Cancelled'].includes(order.status) ? "Order completed" : "Refresh Status"}
+                                      >
+                                        {updateStatusMutation.isPending ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (individualCooldowns[order.id] || 0) > 0 ? (
+                                          <Timer className="h-3 w-3" />
+                                        ) : (
+                                          <RefreshCw className="h-3 w-3" />
+                                        )}
+                                      </Button>
                                     )}
-                                  </Button>
-                                )}
+                                    
+                                    {/* Cancel Order Button - Show for In progress orders */}
+                                    {order.external_order_id && order.status === 'In progress' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleCancelOrder(order.id, order.external_order_id)}
+                                        disabled={cancelOrderMutation.isPending}
+                                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        title="Cancel Order"
+                                      >
+                                        {cancelOrderMutation.isPending ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    )}
+                                    
+                                    {/* Debug info - show what's preventing buttons */}
+                                    {!order.external_order_id && (
+                                      <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">
+                                        No tracking ID
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Cooldown indicator */}
+                                  {(individualCooldowns[order.id] || 0) > 0 && (
+                                    <div className="text-xs text-gray-500">
+                                      Available in {formatCooldownTime(individualCooldowns[order.id])}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Debug: Show order status and external_order_id */}
+                                  <div className="text-xs text-gray-400">
+                                    Status: {order.status}
+                                    {order.external_order_id && (
+                                      <><br />ID: {order.external_order_id}</>
+                                    )}
+                                  </div>
+                                </div>
                               </TableCell>
                           </TableRow>
-                      ))}
+                        );
+                      })}
                   </TableBody>
               </Table>
           ) : (
