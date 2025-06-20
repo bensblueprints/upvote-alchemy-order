@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const { amount } = await req.json();
 
-    if (!amount || amount < 1500) { // Min $15 in cents
+    if (!amount || amount < 10) { // Min $15 in cents
       throw new Error("Minimum deposit amount is $15.");
     }
 

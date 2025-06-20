@@ -112,7 +112,7 @@ export const AddFunds = () => {
 
   const handleStripePayment = async () => {
     const amount = parseFloat(depositAmount);
-    if (!amount || amount < 15) {
+    if (!amount || amount < 0.1) {
       toast({
         title: 'Invalid Amount',
         description: 'Minimum deposit is $15.',
