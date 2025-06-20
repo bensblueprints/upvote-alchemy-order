@@ -59,7 +59,14 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     <div className={collapsed ? 'w-16 bg-white shadow-lg flex flex-col' : 'w-64 bg-white shadow-lg flex flex-col'}>
       <div className="p-6 border-b flex items-center justify-between">
         <div>
-          <h1 className={collapsed ? 'text-2xl font-bold text-orange-500 hidden' : 'text-2xl font-bold text-orange-500'}>RedditTraffic.XYZ</h1>
+          <div className={collapsed ? 'hidden' : 'flex items-center'}>
+            <img 
+              src="/reddit-logo.png" 
+              alt="RedditTraffic.XYZ Logo" 
+              className="h-8 w-auto"
+              style={{ filter: 'drop-shadow(0 0 6px #FF4500)' }}
+            />
+          </div>
           <p className={collapsed ? 'hidden' : 'text-sm text-gray-500 mt-1'}>Reddit Marketing Platform</p>
         </div>
         <button onClick={() => setCollapsed((c) => !c)} className="ml-2 p-1 rounded hover:bg-gray-100">

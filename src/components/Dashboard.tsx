@@ -1,6 +1,5 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, MessageSquare, Clock, DollarSign } from 'lucide-react';
+import { TrendingUp, MessageSquare, Clock, DollarSign, ThumbsUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,42 +11,120 @@ import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type UpvoteOrder = Tables<'upvote_orders'>;
+type CommentOrder = Tables<'comment_orders'>;
+type Transaction = Tables<'transactions'>;
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   usePageTitle('Home');
 
-  const stats = [
-    {
-      title: 'Total Orders',
-      value: '127',
-      change: '+12%',
-      icon: TrendingUp,
-      color: 'text-blue-600',
-    },
-    {
-      title: 'Active Orders',
-      value: '8',
-      change: '+2',
-      icon: Clock,
-      color: 'text-orange-600',
-    },
-    {
-      title: 'Comments Posted',
-      value: '45',
-      change: '+8%',
-      icon: MessageSquare,
-      color: 'text-green-600',
-    },
-    {
-      title: 'Total Spent',
-      value: '$1,234',
-      change: '+15%',
-      icon: DollarSign,
-      color: 'text-purple-600',
-    },
-  ];
+  // Fetch dashboard statistics
+  const fetchDashboardStats = async () => {
+    if (!user) return null;
+
+    // Fetch upvote orders
+    const { data: upvoteOrders, error: upvoteError } = await supabase
+      .from('upvote_orders')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (upvoteError) throw upvoteError;
+
+    // Fetch comment orders  
+    const { data: commentOrders, error: commentError } = await supabase
+      .from('comment_orders')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (commentError) throw commentError;
+
+    // Fetch transactions for total spent calculation
+    const { data: transactions, error: transactionError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('type', ['purchase', 'reddit_account_purchase']); // Only purchase transactions
+
+    if (transactionError) throw transactionError;
+
+    // Calculate stats
+    const totalOrders = (upvoteOrders?.length || 0) + (commentOrders?.length || 0);
+    
+    const activeUpvoteOrders = upvoteOrders?.filter(order => 
+      ['Pending', 'In progress'].includes(order.status)
+    ).length || 0;
+    
+    const activeCommentOrders = commentOrders?.filter(order => 
+      ['Pending', 'In progress'].includes(order.status)
+    ).length || 0;
+    
+    const activeOrders = activeUpvoteOrders + activeCommentOrders;
+    
+    const completedCommentOrders = commentOrders?.filter(order => 
+      order.status.toLowerCase() === 'completed'
+    ).length || 0;
+    
+    // Calculate total upvotes delivered
+    const totalUpvotesDelivered = upvoteOrders?.reduce((sum, order) => {
+      const votesDelivered = (order as any).votes_delivered ?? 0;
+      return sum + votesDelivered;
+    }, 0) || 0;
+    
+    // Calculate total spent (sum of absolute values of negative transaction amounts)
+    const totalSpent = transactions?.reduce((sum, transaction) => {
+      return sum + Math.abs(transaction.amount);
+    }, 0) || 0;
+
+    // Calculate percentage changes (mock for now, could be enhanced with date-based queries)
+    const currentDate = new Date();
+    const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, currentDate.getDate());
+    
+    // Recent orders (last 30 days) for percentage calculation
+    const recentOrders = [...(upvoteOrders || []), ...(commentOrders || [])].filter(order => 
+      new Date(order.created_at) >= lastMonth
+    );
+    
+    const recentActiveOrders = [...(upvoteOrders || []), ...(commentOrders || [])].filter(order => 
+      new Date(order.created_at) >= lastMonth && ['Pending', 'In progress'].includes(order.status)
+    );
+
+    const recentCompletedComments = (commentOrders || []).filter(order => 
+      new Date(order.created_at) >= lastMonth && order.status.toLowerCase() === 'completed'
+    );
+
+    const recentUpvotesDelivered = upvoteOrders?.filter(order => 
+      new Date(order.created_at) >= lastMonth
+    ).reduce((sum, order) => {
+      const votesDelivered = (order as any).votes_delivered ?? 0;
+      return sum + votesDelivered;
+    }, 0) || 0;
+
+    const recentSpent = transactions?.filter(transaction => 
+      new Date(transaction.created_at) >= lastMonth
+    ).reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0) || 0;
+
+    return {
+      totalOrders,
+      activeOrders,
+      completedCommentOrders,
+      totalUpvotesDelivered,
+      totalSpent,
+      changes: {
+        totalOrders: recentOrders.length,
+        activeOrders: recentActiveOrders.length,
+        completedCommentOrders: recentCompletedComments.length,
+        totalUpvotesDelivered: recentUpvotesDelivered,
+        totalSpent: recentSpent
+      }
+    };
+  };
+
+  const { data: dashboardStats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['dashboardStats', user?.id],
+    queryFn: fetchDashboardStats,
+    enabled: !!user,
+  });
 
   const fetchRecentOrders = async () => {
     if (!user) return [];
@@ -93,6 +170,50 @@ export const Dashboard = () => {
     }
   };
 
+  // Generate stats array with real data
+  const stats = dashboardStats ? [
+    {
+      title: 'Total Orders',
+      value: dashboardStats.totalOrders.toString(),
+      change: `+${dashboardStats.changes.totalOrders}`,
+      changeText: 'this month',
+      icon: TrendingUp,
+      color: 'text-blue-600',
+    },
+    {
+      title: 'Active Orders',
+      value: dashboardStats.activeOrders.toString(),
+      change: `+${dashboardStats.changes.activeOrders}`,
+      changeText: 'this month',
+      icon: Clock,
+      color: 'text-orange-600',
+    },
+    {
+      title: 'Comments Posted',
+      value: dashboardStats.completedCommentOrders.toString(),
+      change: `+${dashboardStats.changes.completedCommentOrders}`,
+      changeText: 'this month',
+      icon: MessageSquare,
+      color: 'text-green-600',
+    },
+    {
+      title: 'Upvotes Delivered',
+      value: dashboardStats.totalUpvotesDelivered.toLocaleString(),
+      change: `+${dashboardStats.changes.totalUpvotesDelivered.toLocaleString()}`,
+      changeText: 'this month',
+      icon: ThumbsUp,
+      color: 'text-emerald-600',
+    },
+    {
+      title: 'Total Spent',
+      value: `$${dashboardStats.totalSpent.toFixed(2)}`,
+      change: `+$${dashboardStats.changes.totalSpent.toFixed(2)}`,
+      changeText: 'this month',
+      icon: DollarSign,
+      color: 'text-purple-600',
+    },
+  ] : [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -100,24 +221,42 @@ export const Dashboard = () => {
         <p className="text-gray-600 mt-2">Monitor your Reddit marketing campaigns</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        {isLoadingStats ? (
+          // Loading skeletons for stats cards
+          Array.from({ length: 5 }).map((_, index) => (
+            <Card key={index}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`w-4 h-4 ${stat.color}`} />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="w-4 h-4" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-green-600 mt-1">{stat.change} from last month</p>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-20" />
               </CardContent>
             </Card>
-          );
-        })}
+          ))
+        ) : (
+          stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={stat.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    {stat.title}
+                  </CardTitle>
+                  <Icon className={`w-4 h-4 ${stat.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <p className="text-xs text-green-600 mt-1">
+                    {stat.change} {stat.changeText}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
       <Card>
