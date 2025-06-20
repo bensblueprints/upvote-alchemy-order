@@ -103,10 +103,9 @@ const Auth = () => {
         {/* Logo */}
         <div className="flex justify-center">
           <img 
-            src="/reddit-logo.png" 
-            alt="RedditTraffic.XYZ Logo" 
-            className="h-16 w-auto"
-            style={{ filter: 'drop-shadow(0 0 8px #FF4500)' }}
+            src="/white-bg-logo.png" 
+            alt="UpVoteThat.com Logo" 
+            className="h-30 w-auto"
           />
         </div>
         

@@ -174,10 +174,9 @@ export default function LinkInBio() {
 
       {/* Logo */}
       <img 
-        src="/reddit-logo.png" 
+        src="/black-bg-logo.png" 
         alt="RedditTraffic.XYZ Logo" 
-        className="h-20 mb-6"
-        style={{ filter: 'drop-shadow(0 0 16px #FF4500)' }}
+        className="h-24 mb-6"
       />
 
       {/* Title */}

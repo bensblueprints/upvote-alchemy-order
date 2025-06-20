@@ -63,7 +63,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
             <img 
               src="/white-bg-logo.png" 
               alt="RedditTraffic.XYZ Logo" 
-              className="h-8 w-auto"
+              className="h-18 w-auto"
             />
           </div>
         </div>

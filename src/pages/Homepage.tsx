@@ -85,7 +85,7 @@ export default function Homepage() {
       <header className="bg-black text-white p-4 shadow-lg sticky top-0 z-50">
         <nav className="container mx-auto flex justify-between items-center py-2">
           <div className="flex items-center space-x-3">
-            <img src="/black-bg-logo.png" alt="RedditTraffic.XYZ Logo" className="h-10 w-auto" />
+            <img src="/black-bg-logo.png" alt="RedditTraffic.XYZ Logo" className="h-24 w-auto" />
           </div>
           <div className="hidden md:flex space-x-4 items-center">
             <Link to="/auth" className="bg-blue-600 text-white py-2 px-6 rounded-full font-semibold hover:bg-blue-700 transition duration-300 shadow-md">
