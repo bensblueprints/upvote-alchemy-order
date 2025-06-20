@@ -26,13 +26,20 @@ const Index = () => {
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
+    
+    // Handle payment status first
     if (query.get('payment_status') === 'success') {
+      const amount = query.get('amount');
       toast({
         title: "Payment Successful!",
-        description: "Your funds have been added and should reflect in your balance shortly.",
+        description: amount 
+          ? `$${amount} has been successfully added to your balance.`
+          : "Your funds have been added and should reflect in your balance shortly.",
       });
-      // Clean up URL and navigate to add-funds tab
-      navigate('/?tab=add-funds', { replace: true });
+      // Set dashboard tab immediately and clean up URL
+      setActiveTab('dashboard');
+      navigate('/', { replace: true });
+      return; // Exit early to prevent other tab logic
     }
 
     if (query.get('payment_status') === 'cancelled') {
@@ -41,10 +48,12 @@ const Index = () => {
         description: "Your payment was cancelled. You have not been charged.",
         variant: "destructive"
       });
-       // Clean up URL
+      // Clean up URL
       navigate('/', { replace: true });
+      return; // Exit early
     }
 
+    // Only handle tab parameter if not a payment status redirect
     const tab = query.get('tab');
     if (tab) {
       setActiveTab(tab);

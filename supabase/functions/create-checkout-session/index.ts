@@ -55,7 +55,7 @@ serve(async (req) => {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/?payment_status=success`,
+      success_url: `${origin}/?payment_status=success&amount=${(amount / 100).toFixed(2)}&tab=dashboard`,
       cancel_url: `${origin}/?payment_status=cancelled`,
       ...(user ? { customer_email: user.email } : {}),
     });
