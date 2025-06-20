@@ -86,13 +86,12 @@ serve(async (req) => {
         }
 
         if (order.user_id) {
-          // Add the amount to user's balance
+          // Add the amount to user's balance using RPC
           const { error: balanceError } = await supabaseAdmin
-            .from('profiles')
-            .update({ 
-              balance: supabaseAdmin.sql`balance + ${amountInDollars}`
-            })
-            .eq('id', order.user_id);
+            .rpc('update_user_balance', {
+              p_user_id: order.user_id,
+              p_amount: amountInDollars
+            });
 
           if (balanceError) {
             console.error("Failed to update user balance:", balanceError);

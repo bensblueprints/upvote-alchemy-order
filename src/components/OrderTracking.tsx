@@ -462,12 +462,15 @@ export const OrderTracking = ({ orderType = 'upvotes' }: OrderTrackingProps) => 
                     <span className="text-gray-600">Date:</span>
                     <span className="ml-2 font-medium">{format(new Date(searchedOrder.created_at), 'PPp')}</span>
                 </div>
-                                 {(searchedOrder as any).votes_delivered !== null && (searchedOrder as any).votes_delivered > 0 && (
-                   <div>
-                     <span className="text-gray-600">Delivered:</span>
-                     <span className="ml-2 font-medium">{(searchedOrder as any).votes_delivered} / {searchedOrder.quantity}</span>
-                   </div>
-                 )}
+                                 <div>
+                   <span className="text-gray-600">Delivered:</span>
+                   <span className="ml-2 font-medium">
+                     {(searchedOrder as any).votes_delivered ?? 0} / {searchedOrder.quantity}
+                     <span className="text-gray-500 text-sm ml-1">
+                       ({Math.round(((searchedOrder as any).votes_delivered ?? 0) / searchedOrder.quantity * 100)}%)
+                     </span>
+                   </span>
+                 </div>
                 <div className="col-span-2">
                     <span className="text-gray-600">Link:</span>
                     <a href={searchedOrder.link} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 hover:underline break-all">{searchedOrder.link}</a>
@@ -560,7 +563,7 @@ export const OrderTracking = ({ orderType = 'upvotes' }: OrderTrackingProps) => 
                       {pastOrders.map((order) => {
                         const urlInfo = parseRedditUrl(order.link);
                         const serviceInfo = getServiceDisplayInfo(order.service);
-                        const votesDelivered = (order as any).votes_delivered || 0;
+                        const votesDelivered = (order as any).votes_delivered ?? 0;
                         
 
                         
@@ -611,10 +614,11 @@ export const OrderTracking = ({ orderType = 'upvotes' }: OrderTrackingProps) => 
                               
                               <TableCell>
                                 <div className="flex flex-col items-center space-y-1">
-                                  <span className="font-medium text-lg text-green-600">
-                                    {votesDelivered}
+                                  <span className="font-medium text-lg">
+                                    <span className="text-green-600">{votesDelivered}</span>
+                                    <span className="text-gray-500 text-sm">/{order.quantity}</span>
                                   </span>
-                                  {votesDelivered > 0 && (
+                                  {order.quantity > 0 && (
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                       <div 
                                         className="bg-green-600 h-2 rounded-full transition-all duration-300" 
