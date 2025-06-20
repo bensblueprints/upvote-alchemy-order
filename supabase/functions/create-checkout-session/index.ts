@@ -16,8 +16,8 @@ serve(async (req) => {
   try {
     const { amount } = await req.json();
 
-    if (!amount || amount < 10) { // Min $15 in cents
-      throw new Error("Minimum deposit amount is $15.");
+    if (!amount || amount < 100) { // Min $1 in cents
+      throw new Error("Minimum deposit amount is $1.");
     }
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {

@@ -112,10 +112,10 @@ export const AddFunds = () => {
 
   const handleStripePayment = async () => {
     const amount = parseFloat(depositAmount);
-    if (!amount || amount < 0.1) {
+    if (!amount || amount < 1) {
       toast({
         title: 'Invalid Amount',
-        description: 'Minimum deposit is $15.',
+        description: 'Minimum deposit is $1.',
         variant: 'destructive',
       });
       return;
@@ -146,7 +146,7 @@ export const AddFunds = () => {
   };
 
   const depositAmountNum = parseFloat(depositAmount) || 0;
-  const applicableTier = depositAmountNum >= 15 ? getApplicableTier(depositAmountNum) : null;
+  const applicableTier = depositAmountNum >= 1 ? getApplicableTier(depositAmountNum) : null;
 
   return (
     <div className="space-y-8">
@@ -203,18 +203,18 @@ export const AddFunds = () => {
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
                 className="text-xl font-semibold h-12"
-                min="15"
+                min="1"
               />
               <Button 
                 onClick={handleStripePayment}
-                disabled={!depositAmount || parseFloat(depositAmount) < 15}
+                disabled={!depositAmount || parseFloat(depositAmount) < 1}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-8 h-12"
               >
                 Pay Now
               </Button>
             </div>
             
-            {depositAmountNum >= 15 && applicableTier && (
+            {depositAmountNum >= 1 && applicableTier && (
               <div className="bg-white p-4 rounded-lg border">
                 <div className="text-center space-y-2">
                   <p className="text-lg">
@@ -231,9 +231,9 @@ export const AddFunds = () => {
               </div>
             )}
             
-            {depositAmount && parseFloat(depositAmount) < 15 && (
+            {depositAmount && parseFloat(depositAmount) < 1 && (
               <div className="text-red-500 text-sm text-center">
-                Minimum deposit amount is $15
+                Minimum deposit amount is $1
               </div>
             )}
           </div>
