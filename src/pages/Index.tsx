@@ -38,7 +38,7 @@ const Index = () => {
       });
       // Set dashboard tab immediately and clean up URL
       setActiveTab('dashboard');
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
       return; // Exit early to prevent other tab logic
     }
 
@@ -49,7 +49,7 @@ const Index = () => {
         variant: "destructive"
       });
       // Clean up URL
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
       return; // Exit early
     }
 
