@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { Tables } from '@/integrations/supabase/types';
+import { EmbeddedCommentTracking } from '@/components/EmbeddedCommentTracking';
 
 type CommentOrder = Tables<'comment_orders'>;
 
@@ -28,33 +29,10 @@ export const OrderComments = () => {
   const [numComments, setNumComments] = useState(1);
   const [commentForms, setCommentForms] = useState<CommentFormData[]>([{ link: '', content: '' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [refreshCooldowns, setRefreshCooldowns] = useState<Record<number, number>>({});
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   usePageTitle('Order Comments');
-
-  // Fetch past comment orders
-  const { data: pastOrders, isLoading: isLoadingPastOrders } = useQuery({
-    queryKey: ['commentOrders', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('comment_orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching comment orders:', error);
-        throw error;
-      }
-
-      return data as CommentOrder[];
-    },
-    enabled: !!user?.id,
-  });
 
   // Update number of comment forms when numComments changes
   useEffect(() => {
@@ -63,28 +41,6 @@ export const OrderComments = () => {
     );
     setCommentForms(newForms);
   }, [numComments]);
-
-  // Cooldown timer effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRefreshCooldowns(prev => {
-        const updated = { ...prev };
-        let hasChanges = false;
-        
-        Object.keys(updated).forEach(key => {
-          const orderId = parseInt(key);
-          if (updated[orderId] > 0) {
-            updated[orderId] = Math.max(0, updated[orderId] - 1);
-            hasChanges = true;
-          }
-        });
-        
-        return hasChanges ? updated : prev;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const updateFormData = (index: number, field: keyof CommentFormData, value: string) => {
     setCommentForms(prev => 
@@ -436,127 +392,10 @@ export const OrderComments = () => {
         </CardContent>
       </Card>
 
-      {/* Order Tracking */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Comment Orders</CardTitle>
-          <CardDescription>
-            Track your submitted comment orders. Orders are processed manually and may take some time to complete.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingPastOrders ? (
-            <p>Loading past orders...</p>
-          ) : pastOrders && pastOrders.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Order ID</TableHead>
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="w-[200px]">SubReddit & Link</TableHead>
-                  <TableHead className="w-[250px]">Comment Preview</TableHead>
-                  <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[120px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pastOrders.map((order) => {
-                  const urlInfo = parseRedditUrl(order.link);
-                  const cooldown = refreshCooldowns[order.id] || 0;
-                  
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span className="font-bold">#{order.id}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex flex-col text-sm">
-                          <span className="font-medium">{format(new Date(order.created_at), 'MMM dd')}</span>
-                          <span className="text-gray-500">{format(new Date(order.created_at), 'HH:mm')}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-600">{urlInfo.subreddit}</span>
-                          <a 
-                            href={order.link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1"
-                          >
-                            View {urlInfo.type} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-                      </TableCell>
 
-                      <TableCell>
-                        <div className="text-sm">
-                          <p className="line-clamp-3 text-gray-700">
-                            {order.content.length > 100 
-                              ? order.content.substring(0, 97) + '...' 
-                              : order.content
-                            }
-                          </p>
-                        </div>
-                      </TableCell>
 
-                      <TableCell>
-                        <Badge className={`${getStatusColor(order.status)} text-xs`}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex space-x-1">
-                          {/* Refresh Status Button */}
-                          {order.external_order_id && !['Completed'].includes(order.status) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRefreshStatus(order.id)}
-                              disabled={cooldown > 0}
-                              className="p-2"
-                              title="Refresh Status"
-                            >
-                              {cooldown > 0 ? (
-                                <span className="text-xs">{formatCooldownTime(cooldown)}</span>
-                              ) : (
-                                <RefreshCw className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
-                          
-                          {/* Completed check mark */}
-                          {order.status === 'Completed' && (
-                            <div className="p-2">
-                              <span className="text-green-600 text-sm">✓ Complete</span>
-                            </div>
-                          )}
-                          
-                          {/* No tracking ID available */}
-                          {!order.external_order_id && (
-                            <div className="text-xs text-orange-600 p-2">
-                              Processing...
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No comment orders found. Submit your first comment order above!</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Embedded Comment Order Tracking */}
+      <EmbeddedCommentTracking />
     </div>
   );
 };

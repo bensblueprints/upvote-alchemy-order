@@ -99,7 +99,18 @@ const Auth = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Tabs defaultValue="signin" className="w-[400px]">
+      <div className="w-[400px] space-y-6">
+        {/* Logo */}
+        <div className="flex justify-center">
+          <img 
+            src="/reddit-logo.png" 
+            alt="RedditTraffic.XYZ Logo" 
+            className="h-16 w-auto"
+            style={{ filter: 'drop-shadow(0 0 8px #FF4500)' }}
+          />
+        </div>
+        
+        <Tabs defaultValue="signin" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="signin">Sign In</TabsTrigger>
           <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -193,6 +204,7 @@ const Auth = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 };

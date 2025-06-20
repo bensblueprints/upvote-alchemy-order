@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import UpdatePassword from "./pages/UpdatePassword";
 import Homepage from './pages/Homepage';
 import ApiDocs from './pages/ApiDocs';
+import LinkInBio from './pages/LinkInBio';
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/api-docs" element={<ApiDocs />} />
+            <Route path="/card" element={<LinkInBio />} />
             <Route path="/" element={<Homepage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

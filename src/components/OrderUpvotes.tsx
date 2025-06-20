@@ -11,6 +11,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { SPEED_OPTIONS, SERVICE_OPTIONS, api } from '@/lib/api';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
+import { EmbeddedUpvoteTracking } from '@/components/EmbeddedUpvoteTracking';
 
 export const OrderUpvotes = () => {
   const [formData, setFormData] = useState({
@@ -221,6 +222,9 @@ export const OrderUpvotes = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Embedded Order Tracking */}
+      <EmbeddedUpvoteTracking />
     </div>
   );
 };
