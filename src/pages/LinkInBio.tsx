@@ -13,7 +13,7 @@ interface Translation {
 
 const translations: { [key: string]: Translation } = {
   en: {
-    title: 'RedditTraffic.XYZ Links',
+    title: 'UpvoteThat.com Links',
     link1: '🔥 Access Traffic Platform',
     link2: '💬 Send Us A Message On Telegram',
     link3: '📕 Grab The Ebook: Be The Best Shill & Stop Losing Accounts',
@@ -23,7 +23,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'Contact & Support',
   },
   zh: {
-    title: 'RedditTraffic.XYZ 传送门',
+    title: 'UpvoteThat.com 传送门',
     link1: '🔥 访问流量平台',
     link2: '💬 给我们发消息（Telegram）',
     link3: '📕 获取电子书：成为最佳水军，避免账号被封',
@@ -33,7 +33,7 @@ const translations: { [key: string]: Translation } = {
     contact: '联系与支持',
   },
   ru: {
-    title: 'RedditTraffic.XYZ Ссылки',
+    title: 'UpvoteThat.com Ссылки',
     link1: '🔥 Доступ к платформе трафика',
     link2: '💬 Написать нам в Telegram',
     link3: '📕 Получить книгу: Как стать лучшим шиллером и не терять аккаунты',
@@ -43,7 +43,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'Контакты и поддержка',
   },
   vi: {
-    title: 'RedditTraffic.XYZ Liên kết',
+    title: 'UpvoteThat.com Liên kết',
     link1: '🔥 Truy cập Nền tảng Traffic',
     link2: '💬 Nhắn tin cho chúng tôi trên Telegram',
     link3: '📕 Nhận Ebook: Trở thành Shill đỉnh & Giữ tài khoản an toàn',
@@ -53,7 +53,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'Liên hệ & Hỗ trợ',
   },
   th: {
-    title: 'RedditTraffic.XYZ ลิงก์',
+    title: 'UpvoteThat.com ลิงก์',
     link1: '🔥 เข้าถึงแพลตฟอร์มทราฟฟิก',
     link2: '💬 ส่งข้อความหาเราทาง Telegram',
     link3: '📕 รับ Ebook: เป็น Shill ขั้นเทพ & ไม่โดนแบนบัญชี',
@@ -63,7 +63,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'ติดต่อ & ซัพพอร์ต',
   },
   es: {
-    title: 'RedditTraffic.XYZ Enlaces',
+    title: 'UpvoteThat.com Enlaces',
     link1: '🔥 Acceder a la Plataforma de Tráfico',
     link2: '💬 Envíanos un mensaje en Telegram',
     link3: '📕 Consigue el Ebook: Sé el mejor Shill y no pierdas cuentas',
@@ -73,7 +73,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'Contacto y Soporte',
   },
   ar: {
-    title: 'روابط RedditTraffic.XYZ',
+    title: 'روابط UpvoteThat.com',
     link1: '🔥 الوصول إلى منصة الترافيك',
     link2: '💬 أرسل لنا رسالة على تيليجرام',
     link3: '📕 احصل على الكتاب الإلكتروني: كن أفضل شيل ولا تخسر الحسابات',
@@ -83,7 +83,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'الدعم والتواصل',
   },
   fa: {
-    title: 'لینک‌های RedditTraffic.XYZ',
+    title: 'لینک‌های UpvoteThat.com',
     link1: '🔥 دسترسی به پلتفرم ترافیک',
     link2: '💬 ارسال پیام در تلگرام',
     link3: '📕 دریافت کتاب الکترونیکی: بهترین شیل باش و اکانت از دست نده',
@@ -93,7 +93,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'تماس و پشتیبانی',
   },
   tr: {
-    title: 'RedditTraffic.XYZ Bağlantılar',
+    title: 'UpvoteThat.com Bağlantılar',
     link1: '🔥 Trafik Platformuna Erişim',
     link2: "💬 Telegram'da bize mesaj gönderin",
     link3: '📕 E-Kitabı Al: En İyi Shill Ol & Hesap Kaybetmeyi Durdur',
@@ -103,7 +103,7 @@ const translations: { [key: string]: Translation } = {
     contact: 'İletişim & Destek',
   },
   fr: {
-    title: 'Liens RedditTraffic.XYZ',
+    title: 'Liens UpvoteThat.com',
     link1: '🔥 Accéder à la plateforme de trafic',
     link2: '💬 Envoyez-nous un message sur Telegram',
     link3: "📕 Obtenez l'Ebook : Soyez le meilleur Shill & ne perdez plus de comptes",
@@ -142,11 +142,11 @@ export default function LinkInBio() {
   const blueGradient = "bg-gradient-to-r from-blue-600 to-blue-400";
 
   // BunnyCDN Stream URLs - using embed format for better sizing
-  const bunnyStreamUrl = "https://iframe.mediadelivery.net/embed/457466/d883c927-e45a-4b42-b7af-4b3791304d4c"; 
-  const bunnyPosterUrl = "https://vz-6c0d7838-1d4.b-cdn.net/d883c927-e45a-4b42-b7af-4b3791304d4c/thumbnail_74c4f40a.jpg"; 
+  const bunnyStreamUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e9"; 
+  const bunnyPosterUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/thumbnail.jpg"; 
   
   // Direct video URL for fallback (if needed)
-  const directVideoUrl = "https://vz-6c0d7838-1d4.b-cdn.net/d883c927-e45a-4b42-b7af-4b3791304d4c/play_720p.mp4";
+  const directVideoUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/play_720p.mp4";
   
   const posterUrl = bunnyPosterUrl;
   const videoUrl = bunnyStreamUrl;
@@ -175,7 +175,7 @@ export default function LinkInBio() {
       {/* Logo */}
       <img 
         src="/black-bg-logo.png" 
-        alt="RedditTraffic.XYZ Logo" 
+        alt="UpvoteThat.com Logo" 
         className="h-24 mb-6"
       />
 
@@ -215,7 +215,7 @@ export default function LinkInBio() {
       {/* Main Links */}
       <div className="w-full flex flex-col items-center space-y-1">
         <a 
-          href="https://www.reddittraffic.xyz/auth" 
+          href="https://www.UpvoteThat.com/auth" 
           className={`${pillLinkClass} ${primaryGradient}`}
         >
           {currentTranslation.link1}
@@ -266,7 +266,7 @@ export default function LinkInBio() {
 
       {/* Footer */}
       <footer className="mt-10 text-gray-400 text-sm text-center">
-        &copy; 2025 RedditTraffic.XYZ. All rights reserved.
+        &copy; 2025 UpvoteThat.com. All rights reserved.
       </footer>
     </div>
   );
