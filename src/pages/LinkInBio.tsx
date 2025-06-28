@@ -146,7 +146,7 @@ export default function LinkInBio() {
   const bunnyPosterUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/thumbnail.jpg"; 
   
   // Direct video URL for fallback (if needed)
-  const directVideoUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e9";
+  const directVideoUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/preview.webp?v=1751164106";
   
   const posterUrl = bunnyPosterUrl;
   const videoUrl = bunnyStreamUrl;
