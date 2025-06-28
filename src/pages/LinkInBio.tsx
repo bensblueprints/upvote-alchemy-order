@@ -222,7 +222,7 @@ export default function LinkInBio() {
         </a>
         
         <a 
-          href="#" 
+          href="https://reddit.rootaccess.design/reddit-warfare-guide" 
           className={`${pillLinkClass} ${primaryGradient}`}
         >
           {currentTranslation.link3}
