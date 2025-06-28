@@ -142,11 +142,11 @@ export default function LinkInBio() {
   const blueGradient = "bg-gradient-to-r from-blue-600 to-blue-400";
 
   // BunnyCDN Stream URLs - using embed format for better sizing
-  const bunnyStreamUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e9"; 
+  const bunnyStreamUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e99"; 
   const bunnyPosterUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/thumbnail.jpg"; 
   
   // Direct video URL for fallback (if needed)
-  const directVideoUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e9ttps://vz-6c0d7838-1d4.b-cdn.net/d883c927-e45a-4b42-b7af-4b3791304d4c/play_720p.mp4";
+  const directVideoUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e9";
   
   const posterUrl = bunnyPosterUrl;
   const videoUrl = bunnyStreamUrl;
