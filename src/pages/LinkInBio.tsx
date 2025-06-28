@@ -141,16 +141,6 @@ export default function LinkInBio() {
   const primaryGradient = "bg-gradient-to-r from-orange-500 to-orange-400";
   const blueGradient = "bg-gradient-to-r from-blue-600 to-blue-400";
 
-  // BunnyCDN Stream URLs - using embed format for better sizing
-  const bunnyStreamUrl = "https://iframe.mediadelivery.net/play/460187/ee0ee4a7-2921-49b1-bdd1-f130099c91e99"; 
-  const bunnyPosterUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/thumbnail.jpg"; 
-  
-  // Direct video URL for fallback (if needed)
-  const directVideoUrl = "https://vz-5083a139-4ff.b-cdn.net/ee0ee4a7-2921-49b1-bdd1-f130099c91e9/preview.webp?v=1751164106";
-  
-  const posterUrl = bunnyPosterUrl;
-  const videoUrl = bunnyStreamUrl;
-
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-start py-10 px-4" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Language Selector */}
@@ -184,31 +174,21 @@ export default function LinkInBio() {
         {currentTranslation.title}
       </h1>
 
-      {/* Video Section - BunnyCDN Stream */}
+      {/* Video Section - YouTube */}
       <div className="w-full max-w-2xl mx-auto mb-6 rounded-3xl overflow-hidden shadow-2xl">
-        {/* Primary: HTML5 video for full size control */}
         <div className="relative aspect-video bg-black">
-          <video
-            controls
-            poster={posterUrl}
-            className="w-full h-full object-cover"
-            style={{ backgroundColor: 'black' }}
-            preload="metadata"
-          >
-            <source src={directVideoUrl} type="video/mp4" />
-            {/* Fallback to iframe if video fails */}
-            <iframe
-              src={videoUrl}
-              className="absolute inset-0 w-full h-full"
-              style={{
-                border: 'none',
-                backgroundColor: 'black'
-              }}
-              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-              allowFullScreen
-            />
-            Your browser does not support the video tag.
-          </video>
+          <iframe 
+            width="100%" 
+            height="100%" 
+            src="https://www.youtube.com/embed/-lcjknW-p-Y?si=Anp7cRD7R3pR8SwC" 
+            title="YouTube video player" 
+            frameBorder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            referrerPolicy="strict-origin-when-cross-origin" 
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 'none' }}
+          />
         </div>
       </div>
 
