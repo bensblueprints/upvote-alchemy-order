@@ -35,7 +35,7 @@ export default function Homepage() {
 
   const faqItems = [
     {
-      question: "How does RedditTraffic.XYZ ensure authentic engagement?",
+      question: "How does UpvoteThat.com ensure authentic engagement?",
       answer: "We utilize a network of real, established Reddit users to provide upvotes and comments. This ensures the engagement appears natural and organic, crucial for maintaining your post's integrity on Reddit."
     },
     {
@@ -85,7 +85,7 @@ export default function Homepage() {
       <header className="bg-black text-white p-4 shadow-lg sticky top-0 z-50">
         <nav className="container mx-auto flex justify-between items-center py-2">
           <div className="flex items-center space-x-3">
-            <img src="/black-bg-logo.png" alt="RedditTraffic.XYZ Logo" className="h-24 w-auto" />
+            <img src="/black-bg-logo.png" alt="UpvoteThat.com Logo" className="h-24 w-auto" />
           </div>
           <div className="hidden md:flex space-x-4 items-center">
             <Link to="/auth" className="bg-blue-600 text-white py-2 px-6 rounded-full font-semibold hover:bg-blue-700 transition duration-300 shadow-md">
@@ -318,7 +318,7 @@ export default function Homepage() {
       {/* Benefits Section */}
       <section id="benefits" className="py-16 bg-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-5xl font-extrabold mb-12 text-black">Why Choose RedditTraffic.XYZ?</h2>
+          <h2 className="text-3xl md:text-5xl font-extrabold mb-12 text-black">Why Choose UpvoteThat.com?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6 rounded-lg text-center">
               <Users className="text-orange-500 w-16 h-16 mx-auto mb-4" />
@@ -370,7 +370,7 @@ export default function Homepage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <Card className="bg-white p-8 rounded-2xl shadow-md">
               <CardContent className="p-0">
-                <p className="text-lg italic text-gray-700 mb-4">"Absolutely incredible! My post reached the front page in hours, something I never thought possible. RedditTraffic.XYZ is the real deal."</p>
+                <p className="text-lg italic text-gray-700 mb-4">"Absolutely incredible! My post reached the front page in hours, something I never thought possible. UpvoteThat.com is the real deal."</p>
                 <p className="font-semibold text-orange-500">— Jessica L., Small Business Owner</p>
               </CardContent>
             </Card>
@@ -430,7 +430,7 @@ export default function Homepage() {
             <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
             <a href="#" className="text-blue-600 hover:underline">Refund Policy</a>
           </div>
-          <p className="text-gray-400">&copy; 2025 RedditTraffic.XYZ. All rights reserved. Not affiliated with Reddit Inc.</p>
+          <p className="text-gray-400">&copy; 2025 UpvoteThat.com. All rights reserved. Not affiliated with Reddit Inc.</p>
         </div>
       </footer>
     </div>
