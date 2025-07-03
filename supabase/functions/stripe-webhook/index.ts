@@ -86,24 +86,40 @@ serve(async (req) => {
         }
 
         if (order.user_id) {
-          // Add the amount to user's balance using RPC
+          // Get current balance and update it
+          const { data: profile, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('balance')
+            .eq('id', order.user_id)
+            .single();
+
+          if (profileError) {
+            console.error("Failed to get user profile:", profileError);
+            return new Response("Failed to get user profile", { status: 500 });
+          }
+
+          // Update user balance directly
           const { error: balanceError } = await supabaseAdmin
-            .rpc('update_user_balance', {
-              p_user_id: order.user_id,
-              p_amount: amountInDollars
-            });
+            .from('profiles')
+            .update({ 
+              balance: (profile.balance || 0) + amountInDollars
+            })
+            .eq('id', order.user_id);
 
           if (balanceError) {
             console.error("Failed to update user balance:", balanceError);
             return new Response("Failed to update balance", { status: 500 });
           }
 
-          // Create a transaction record using a direct function call to bypass RLS
+          // Create a transaction record directly
           const { error: transactionError } = await supabaseAdmin
-            .rpc('create_deposit_transaction', {
-              p_user_id: order.user_id,
-              p_amount: amountInDollars,
-              p_description: `Stripe payment deposit - Session ${session.id}`
+            .from('transactions')
+            .insert({
+              user_id: order.user_id,
+              type: 'deposit',
+              amount: amountInDollars,
+              description: `Stripe payment deposit - Session ${session.id}`,
+              status: 'completed'
             });
 
           if (transactionError) {

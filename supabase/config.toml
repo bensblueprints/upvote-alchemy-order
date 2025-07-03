@@ -1,8 +1,13 @@
-
 project_id = "kuuulgjkgyhgzkjyembj"
 
 [functions.create-checkout-session]
 verify_jwt = false
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-crypto-payment]
+verify_jwt = false
+
+[functions.nowpayments-webhook]
 verify_jwt = false

@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Check, Star, CreditCard, Bitcoin } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -12,8 +12,22 @@ import { supabase } from '@/integrations/supabase/client';
 export const AddFunds = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'crypto'>('credit');
+  const [selectedCurrency, setSelectedCurrency] = useState('USDT');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   usePageTitle('Add Funds');
+
+  // Popular cryptocurrencies supported by NowPayments
+  const cryptoCurrencies = [
+    { value: 'USDT', label: 'USDT (Tether)', icon: '₮' },
+    { value: 'BTC', label: 'Bitcoin', icon: '₿' },
+    { value: 'ETH', label: 'Ethereum', icon: 'Ξ' },
+    { value: 'USDC', label: 'USD Coin', icon: 'USDC' },
+    { value: 'BNB', label: 'Binance Coin', icon: 'BNB' },
+    { value: 'ADA', label: 'Cardano', icon: 'ADA' },
+    { value: 'DOT', label: 'Polkadot', icon: 'DOT' },
+    { value: 'MATIC', label: 'Polygon', icon: 'MATIC' },
+  ];
 
   const packages = [
     {
@@ -121,6 +135,7 @@ export const AddFunds = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { amount: Math.round(amount * 100) }, // amount in cents
@@ -142,6 +157,61 @@ export const AddFunds = () => {
         description: error.message || 'There was an issue processing your payment. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCryptoPayment = async () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount < 1) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Minimum deposit is $1.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-crypto-payment', {
+        body: { 
+          amount: amount,
+          currency: selectedCurrency
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.payment_url) {
+        window.open(data.payment_url, '_blank');
+        toast({
+          title: 'Crypto Payment Created',
+          description: `Please send ${data.crypto_amount} ${data.crypto_currency} to complete your payment.`,
+        });
+      } else {
+        throw new Error('Could not retrieve crypto payment URL.');
+      }
+    } catch (error: any) {
+      console.error('Error creating crypto payment:', error);
+      toast({
+        title: 'Crypto Payment Error',
+        description: error.message || 'There was an issue creating your crypto payment. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePayment = () => {
+    if (paymentMethod === 'credit') {
+      handleStripePayment();
+    } else {
+      handleCryptoPayment();
     }
   };
 
@@ -193,6 +263,28 @@ export const AddFunds = () => {
             </div>
           </div>
 
+          {/* Cryptocurrency Selection */}
+          {paymentMethod === 'crypto' && (
+            <div>
+              <Label className="text-base font-semibold mb-3 block">Select Cryptocurrency:</Label>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose cryptocurrency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cryptoCurrencies.map((crypto) => (
+                    <SelectItem key={crypto.value} value={crypto.value}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono">{crypto.icon}</span>
+                        <span>{crypto.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Deposit Amount Input */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -206,13 +298,25 @@ export const AddFunds = () => {
                 min="1"
               />
               <Button 
-                onClick={handleStripePayment}
-                disabled={!depositAmount || parseFloat(depositAmount) < 1}
+                onClick={handlePayment}
+                disabled={!depositAmount || parseFloat(depositAmount) < 1 || isLoading}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-8 h-12"
               >
-                Pay Now
+                {isLoading ? 'Processing...' : 'Pay Now'}
               </Button>
             </div>
+            
+            {paymentMethod === 'crypto' && (
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div className="text-sm text-blue-700">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Bitcoin className="w-4 h-4" />
+                    <span className="font-semibold">Crypto Payment Info</span>
+                  </div>
+                  <p>You'll be redirected to complete your {selectedCurrency} payment. The exact crypto amount will be calculated at current market rates.</p>
+                </div>
+              </div>
+            )}
             
             {depositAmountNum >= 1 && applicableTier && (
               <div className="bg-white p-4 rounded-lg border">
@@ -303,12 +407,21 @@ export const AddFunds = () => {
       </div>
 
       <div className="bg-gray-50 p-6 rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Package Information</h3>
-        <p className="text-gray-600 text-sm">
-          All packages include access to post upvotes, post downvotes, comment upvotes, and comment downvotes. 
-          The base price covers account setup and platform access, while the per-upvote fee applies to each vote ordered.
-          Deposit any amount above $15 and automatically get the best tier pricing for that range.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">Payment Information</h3>
+        <div className="space-y-2 text-sm text-gray-600">
+          <p>
+            • <strong>Credit Card:</strong> Instant processing via Stripe. Funds appear immediately after successful payment.
+          </p>
+          <p>
+            • <strong>Cryptocurrency:</strong> Pay with Bitcoin, Ethereum, USDT, and other popular cryptocurrencies. Processing time varies by network (typically 5-30 minutes).
+          </p>
+          <p>
+            • All packages include access to post upvotes, post downvotes, comment upvotes, and comment downvotes.
+          </p>
+          <p>
+            • Deposit any amount above $15 and automatically get the best tier pricing for that range.
+          </p>
+        </div>
       </div>
     </div>
   );

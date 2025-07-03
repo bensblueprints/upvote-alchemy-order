@@ -89,6 +89,8 @@ export type Database = {
           created_at: string
           currency: string | null
           id: string
+          nowpayments_payment_id: string | null
+          payment_method: string | null
           status: string | null
           stripe_session_id: string | null
           updated_at: string
@@ -99,6 +101,8 @@ export type Database = {
           created_at?: string
           currency?: string | null
           id?: string
+          nowpayments_payment_id?: string | null
+          payment_method?: string | null
           status?: string | null
           stripe_session_id?: string | null
           updated_at?: string
@@ -109,6 +113,8 @@ export type Database = {
           created_at?: string
           currency?: string | null
           id?: string
+          nowpayments_payment_id?: string | null
+          payment_method?: string | null
           status?: string | null
           stripe_session_id?: string | null
           updated_at?: string
