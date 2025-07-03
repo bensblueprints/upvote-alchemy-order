@@ -16,9 +16,13 @@ import { BuyRedditAccounts } from '@/components/BuyRedditAccounts';
 import { AdminRedditAccounts } from '@/components/AdminRedditAccounts';
 import { MyPurchasedAccounts } from '@/components/MyPurchasedAccounts';
 import { ApiKeySettings } from '@/components/ApiKeySettings';
+import { TransactionHistory } from '@/components/TransactionHistory';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Clock, CheckCircle, X } from 'lucide-react';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [pendingCryptoPayment, setPendingCryptoPayment] = useState<{amount: string, timestamp: number} | null>(null);
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -30,12 +34,34 @@ const Index = () => {
     // Handle payment status first
     if (query.get('payment_status') === 'success') {
       const amount = query.get('amount');
-      toast({
-        title: "Payment Successful!",
-        description: amount 
-          ? `$${amount} has been successfully added to your balance.`
-          : "Your funds have been added and should reflect in your balance shortly.",
-      });
+      const paymentMethod = query.get('method'); // We'll need to add this parameter
+      
+      // Check if this looks like a crypto payment return (from NowPayments)
+      const isCryptoPayment = location.search.includes('nowpayments') || 
+                             window.document.referrer.includes('nowpayments') ||
+                             !query.get('session_id'); // Stripe would have session_id
+      
+      if (isCryptoPayment && amount) {
+        // Show crypto payment pending notice
+        setPendingCryptoPayment({ 
+          amount: amount, 
+          timestamp: Date.now() 
+        });
+        toast({
+          title: "Crypto Payment Received!",
+          description: `$${amount} payment received. Awaiting network confirmation - your balance will update automatically within 10-15 minutes.`,
+          duration: 6000,
+        });
+      } else {
+        // Regular Stripe payment - instant
+        toast({
+          title: "Payment Successful!",
+          description: amount 
+            ? `$${amount} has been successfully added to your balance.`
+            : "Your funds have been added and should reflect in your balance shortly.",
+        });
+      }
+      
       // Set dashboard tab immediately and clean up URL
       setActiveTab('dashboard');
       navigate('/dashboard', { replace: true });
@@ -59,6 +85,17 @@ const Index = () => {
       setActiveTab(tab);
     }
   }, [location.search, navigate, toast]);
+
+  // Auto-hide pending crypto payment notice after 20 minutes
+  useEffect(() => {
+    if (pendingCryptoPayment) {
+      const timer = setTimeout(() => {
+        setPendingCryptoPayment(null);
+      }, 20 * 60 * 1000); // 20 minutes
+
+      return () => clearTimeout(timer);
+    }
+  }, [pendingCryptoPayment]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -86,6 +123,8 @@ const Index = () => {
         return <AddFunds />;
       case 'account':
         return <Account />;
+      case 'transaction-history':
+        return <TransactionHistory />;
       case 'admin-api-key':
         return profile?.is_admin ? <ApiKeySettings /> : <Dashboard />;
       default:
@@ -98,6 +137,31 @@ const Index = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       <div className="flex flex-col flex-1">
         <Header />
+        
+        {/* Pending Crypto Payment Notice */}
+        {pendingCryptoPayment && (
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-3">
+            <Alert className="border-blue-200 bg-blue-50">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <strong>${pendingCryptoPayment.amount} payment received.</strong> Awaiting network confirmation.
+                    <br />
+                    <span className="text-sm">Your wallet balance will update in 10-15 minutes (usually sooner) automatically, as soon as we receive confirmation from the network.</span>
+                  </div>
+                  <button 
+                    onClick={() => setPendingCryptoPayment(null)}
+                    className="text-blue-600 hover:text-blue-800 ml-4"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+        
         <main className="flex-1 p-6 overflow-y-auto">
           {renderContent()}
         </main>

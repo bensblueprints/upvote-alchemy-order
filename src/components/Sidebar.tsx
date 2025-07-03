@@ -12,7 +12,8 @@ import {
   KeyRound,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -44,6 +45,7 @@ export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
     // { id: 'track-upvote-orders', label: 'Track Upvote Orders', icon: ClipboardList }, // Hidden - tracking now embedded in order pages
     // { id: 'track-comment-orders', label: 'Track Comment Orders', icon: ClipboardList }, // Hidden - tracking now embedded in order pages
     { id: 'add-funds', label: 'Add Funds', icon: Plus },
+    { id: 'transaction-history', label: 'Transaction History', icon: Receipt },
     { id: 'account', label: 'Account', icon: User },
   ];
 
