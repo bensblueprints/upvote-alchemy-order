@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Check, Star, CreditCard, Bitcoin } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -12,22 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 export const AddFunds = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'crypto'>('credit');
-  const [selectedCurrency, setSelectedCurrency] = useState('USDT');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   usePageTitle('Add Funds');
-
-  // Popular cryptocurrencies supported by NowPayments
-  const cryptoCurrencies = [
-    { value: 'USDT', label: 'USDT (Tether)', icon: '₮' },
-    { value: 'BTC', label: 'Bitcoin', icon: '₿' },
-    { value: 'ETH', label: 'Ethereum', icon: 'Ξ' },
-    { value: 'USDC', label: 'USD Coin', icon: 'USDC' },
-    { value: 'BNB', label: 'Binance Coin', icon: 'BNB' },
-    { value: 'ADA', label: 'Cardano', icon: 'ADA' },
-    { value: 'DOT', label: 'Polkadot', icon: 'DOT' },
-    { value: 'MATIC', label: 'Polygon', icon: 'MATIC' },
-  ];
 
   const packages = [
     {
@@ -177,8 +164,7 @@ export const AddFunds = () => {
     try {
       const { data, error } = await supabase.functions.invoke('create-crypto-payment', {
         body: { 
-          amount: amount,
-          currency: selectedCurrency
+          amount: amount
         },
       });
 
@@ -190,7 +176,7 @@ export const AddFunds = () => {
         window.open(data.payment_url, '_blank');
         toast({
           title: 'Crypto Payment Created',
-          description: `Please send ${data.crypto_amount} ${data.crypto_currency} to complete your payment.`,
+          description: 'Choose your preferred cryptocurrency on the payment page to complete your deposit.',
         });
       } else {
         throw new Error('Could not retrieve crypto payment URL.');
@@ -263,27 +249,7 @@ export const AddFunds = () => {
             </div>
           </div>
 
-          {/* Cryptocurrency Selection */}
-          {paymentMethod === 'crypto' && (
-            <div>
-              <Label className="text-base font-semibold mb-3 block">Select Cryptocurrency:</Label>
-              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose cryptocurrency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cryptoCurrencies.map((crypto) => (
-                    <SelectItem key={crypto.value} value={crypto.value}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono">{crypto.icon}</span>
-                        <span>{crypto.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+
 
           {/* Deposit Amount Input */}
           <div className="space-y-4">
@@ -313,7 +279,7 @@ export const AddFunds = () => {
                     <Bitcoin className="w-4 h-4" />
                     <span className="font-semibold">Crypto Payment Info</span>
                   </div>
-                  <p>You'll be redirected to complete your {selectedCurrency} payment. The exact crypto amount will be calculated at current market rates.</p>
+                  <p>You'll be redirected to choose from 200+ cryptocurrencies including Bitcoin, Ethereum, USDT, and more. Exact crypto amounts calculated at current market rates.</p>
                 </div>
               </div>
             )}
@@ -413,7 +379,7 @@ export const AddFunds = () => {
             • <strong>Credit Card:</strong> Instant processing via Stripe. Funds appear immediately after successful payment.
           </p>
           <p>
-            • <strong>Cryptocurrency:</strong> Pay with Bitcoin, Ethereum, USDT, and other popular cryptocurrencies. Processing time varies by network (typically 5-30 minutes).
+            • <strong>Cryptocurrency:</strong> Choose from 200+ supported cryptocurrencies including Bitcoin, Ethereum, USDT, USDC, and more. Processing time varies by network (typically 5-30 minutes).
           </p>
           <p>
             • All packages include access to post upvotes, post downvotes, comment upvotes, and comment downvotes.

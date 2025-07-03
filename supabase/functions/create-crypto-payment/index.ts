@@ -12,13 +12,17 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Starting crypto payment creation...");
+    
     const { amount, currency = 'USDT' } = await req.json();
+    console.log("Payment request:", { amount, currency });
 
     if (!amount || amount < 1) {
       throw new Error("Minimum deposit amount is $1.");
     }
 
     const apiKey = Deno.env.get("NOWPAYMENTS_API_KEY");
+    console.log("API Key exists:", !!apiKey);
     if (!apiKey) {
       throw new Error("NowPayments API key not configured");
     }
@@ -29,7 +33,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    console.log("User auth:", { userId: user?.id, error: userError });
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -37,17 +42,22 @@ serve(async (req) => {
     );
 
     // Get current NowPayments rate
+    console.log("Getting NowPayments estimate...");
     const estimateResponse = await fetch(`https://api.nowpayments.io/v1/estimate?amount=${amount}&currency_from=usd&currency_to=${currency}`, {
       headers: {
         'x-api-key': apiKey,
       },
     });
 
+    console.log("Estimate response status:", estimateResponse.status);
     if (!estimateResponse.ok) {
-      throw new Error('Failed to get crypto conversion rate');
+      const errorText = await estimateResponse.text();
+      console.error('NowPayments estimate error:', errorText);
+      throw new Error(`Failed to get crypto conversion rate: ${errorText}`);
     }
 
     const estimate = await estimateResponse.json();
+    console.log("Estimate result:", estimate);
 
     // Create payment with NowPayments
     const origin = req.headers.get("origin");
@@ -62,6 +72,7 @@ serve(async (req) => {
       cancel_url: `${origin}/dashboard?payment_status=cancelled`,
     };
 
+    console.log("Creating payment with data:", paymentData);
     const paymentResponse = await fetch('https://api.nowpayments.io/v1/payment', {
       method: 'POST',
       headers: {
@@ -71,15 +82,18 @@ serve(async (req) => {
       body: JSON.stringify(paymentData),
     });
 
+    console.log("Payment response status:", paymentResponse.status);
     if (!paymentResponse.ok) {
       const errorData = await paymentResponse.text();
-      console.error('NowPayments API Error:', errorData);
-      throw new Error('Failed to create crypto payment');
+      console.error('NowPayments payment error:', errorData);
+      throw new Error(`Failed to create crypto payment: ${errorData}`);
     }
 
     const payment = await paymentResponse.json();
+    console.log("Payment created:", { payment_id: payment.payment_id, payment_url: payment.payment_url });
 
     // Store order in database
+    console.log("Inserting order into database...");
     const { error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
@@ -92,10 +106,11 @@ serve(async (req) => {
       });
 
     if (orderError) {
-      console.error('Error inserting order:', orderError);
-      throw new Error('Failed to save order details.');
+      console.error('Database insert error:', orderError);
+      throw new Error(`Failed to save order details: ${orderError.message}`);
     }
 
+    console.log("Order saved successfully");
     return new Response(JSON.stringify({ 
       payment_url: payment.payment_url,
       payment_id: payment.payment_id,
@@ -106,7 +121,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Crypto payment creation error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
