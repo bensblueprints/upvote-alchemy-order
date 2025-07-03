@@ -6,6 +6,7 @@ import { OrderComments, CommentOrderTracking } from '@/components/OrderComments'
 import { OrderTracking } from '@/components/OrderTracking';
 import { AddFunds } from '@/components/AddFunds';
 import { Account } from '@/components/Account';
+import { Support } from '@/components/Support';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -125,6 +126,8 @@ const Index = () => {
         return <Account />;
       case 'transaction-history':
         return <TransactionHistory />;
+      case 'support':
+        return <Support />;
       case 'admin-api-key':
         return profile?.is_admin ? <ApiKeySettings /> : <Dashboard />;
       default:
